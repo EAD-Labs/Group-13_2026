@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentTPACK — Content Knowledge</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --line: #dfe3e8;
+    --text: #1c1f23;
+    --muted: #5b6470;
+    --accent: #2f5d8a;
+    --warn-bg: #fff6e5;
+    --warn-line: #e0b25c;
+    --warn-text: #6b4a06;
+    --err-bg: #fdecec;
+    --err-line: #d98a8a;
+    --err-text: #7a1f1f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px 64px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: 16px; margin-bottom: 24px;
+  }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field.grow { flex: 1 1 260px; }
+  label { font-size: 12px; color: var(--muted); text-transform: uppercase;
+          letter-spacing: .04em; }
+  input {
+    font: inherit; padding: 8px 10px; border: 1px solid var(--line);
+    border-radius: 6px; background: #fff; color: inherit; width: 100%;
+  }
+  button {
+    font: inherit; font-weight: 600; padding: 9px 18px; border: 0;
+    border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button:disabled { background: #9aa5b1; cursor: not-allowed; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: 16px 18px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 16px; margin: 0 0 8px; }
+  .card p { margin: 0 0 12px; white-space: pre-wrap; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px; padding: 3px 8px; border-radius: 999px;
+    border: 1px solid var(--line); background: #eef2f6; color: var(--accent);
+    cursor: pointer;
+  }
+  .chip:hover { background: #e2e9f1; }
+  .panel {
+    background: var(--card); border: 1px solid var(--accent);
+    border-radius: 8px; padding: 16px 18px; margin-bottom: 16px;
+  }
+  .panel .cid {
+    font-size: 14px; margin: 0 0 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .panel .meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .panel .body { white-space: pre-wrap; }
+  .warn {
+    background: var(--warn-bg); border: 1px solid var(--warn-line);
+    color: var(--warn-text); border-radius: 8px; padding: 14px 18px;
+    margin-bottom: 16px;
+  }
+  .warn h2 { font-size: 15px; margin: 0 0 6px; }
+  .warn ul { margin: 0; padding-left: 20px; }
+  .err {
+    background: var(--err-bg); border: 1px solid var(--err-line);
+    color: var(--err-text); border-radius: 8px; padding: 14px 18px;
+    margin-bottom: 16px; white-space: pre-wrap;
+  }
+  .empty { color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Content Knowledge agent</h1>
+  <p class="sub">NCERT Science Class 7 &mdash; every claim cites the passage it came from.</p>
+
+  <div class="controls">
+    <div class="field grow">
+      <label for="topic">Topic</label>
+      <input id="topic" value="photosynthesis">
+    </div>
+    <div class="field">
+      <label for="duration">Duration (min)</label>
+      <input id="duration" type="number" min="5" max="240" value="45">
+    </div>
+    <div class="field">
+      <button id="go">Generate</button>
+    </div>
+  </div>
+
+  <div id="error"></div>
+  <div id="gaps"></div>
+  <div id="results"><p class="empty">Enter a topic and press Generate.</p></div>
+  <div id="chunk"></div>
+</main>
+
+<script>
+  var topicEl = document.getElementById("topic");
+  var durationEl = document.getElementById("duration");
+  var goEl = document.getElementById("go");
+  var errorEl = document.getElementById("error");
+  var gapsEl = document.getElementById("gaps");
+  var resultsEl = document.getElementById("results");
+  var chunkEl = document.getElementById("chunk");
+
+  function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+
+  function showError(message) {
+    clear(errorEl);
+    var box = document.createElement("div");
+    box.className = "err";
+    box.textContent = message;
+    errorEl.appendChild(box);
+  }
+
+  function renderChunk(chunk) {
+    clear(chunkEl);
+    var meta = chunk.metadata || {};
+    var panel = document.createElement("div");
+    panel.className = "panel";
+
+    var cid = document.createElement("div");
+    cid.className = "cid";
+    cid.textContent = chunk.id;
+    panel.appendChild(cid);
+
+    var line = document.createElement("div");
+    line.className = "meta";
+    line.textContent =
+      "Chapter " + meta.chapter_num + " — " + meta.chapter +
+      " · Section " + meta.section + " · " + meta.source;
+    panel.appendChild(line);
+
+    var body = document.createElement("div");
+    body.className = "body";
+    body.textContent = chunk.text;
+    panel.appendChild(body);
+
+    chunkEl.appendChild(panel);
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function loadChunk(chunkId) {
+    clear(errorEl);
+    fetch("/api/chunks/" + encodeURIComponent(chunkId))
+      .then(function (res) {
+        if (!res.ok) {
+          return res.text().then(function (t) {
+            throw new Error("Chunk " + chunkId + " — HTTP " + res.status + ": " + t);
+          });
+        }
+        return res.json();
+      })
+      .then(renderChunk)
+      .catch(function (e) { showError(e.message); });
+  }
+
+  function renderBlocks(blocks) {
+    clear(resultsEl);
+    if (!blocks || !blocks.length) {
+      var none = document.createElement("p");
+      none.className = "empty";
+      none.textContent = "The model returned no blocks.";
+      resultsEl.appendChild(none);
+      return;
+    }
+    blocks.forEach(function (block) {
+      var card = document.createElement("div");
+      card.className = "card";
+
+      var h2 = document.createElement("h2");
+      h2.textContent = block.title || "(untitled block)";
+      card.appendChild(h2);
+
+      var p = document.createElement("p");
+      p.textContent = block.content || "";
+      card.appendChild(p);
+
+      var chips = document.createElement("div");
+      chips.className = "chips";
+      (block.cited_chunk_ids || []).forEach(function (id) {
+        var chip = document.createElement("button");
+        chip.className = "chip";
+        chip.type = "button";
+        chip.textContent = id;
+        chip.addEventListener("click", function () { loadChunk(id); });
+        chips.appendChild(chip);
+      });
+      card.appendChild(chips);
+
+      resultsEl.appendChild(card);
+    });
+  }
+
+  function renderGaps(gaps) {
+    clear(gapsEl);
+    if (!gaps || !gaps.length) return;
+    var box = document.createElement("div");
+    box.className = "warn";
+    var h2 = document.createElement("h2");
+    h2.textContent = "Coverage gaps — not found in the retrieved passages";
+    box.appendChild(h2);
+    var ul = document.createElement("ul");
+    gaps.forEach(function (gap) {
+      var li = document.createElement("li");
+      li.textContent = typeof gap === "string" ? gap : JSON.stringify(gap);
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+    gapsEl.appendChild(box);
+  }
+
+  function generate() {
+    var topic = topicEl.value.trim();
+    clear(errorEl);
+    if (!topic) { showError("Enter a topic first."); return; }
+
+    goEl.disabled = true;
+    goEl.textContent = "Generating...";
+    clear(gapsEl);
+    clear(chunkEl);
+    clear(resultsEl);
+
+    fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic: topic,
+        duration: Number(durationEl.value) || 45
+      })
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.text().then(function (t) {
+            throw new Error("HTTP " + res.status + ": " + t);
+          });
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        renderGaps(data.coverage_gaps);
+        renderBlocks(data.blocks);
+      })
+      .catch(function (e) { showError(e.message); })
+      .finally(function () {
+        goEl.disabled = false;
+        goEl.textContent = "Generate";
+      });
+  }
+
+  goEl.addEventListener("click", generate);
+  topicEl.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") generate();
+  });
+</script>
+</body>
+</html>
