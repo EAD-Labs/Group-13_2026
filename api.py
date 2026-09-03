@@ -1,5 +1,7 @@
 """FastAPI wrapper around the single-agent RAG pipeline."""
 
+from typing import List, Optional
+
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -16,6 +18,9 @@ class GenerateRequest(BaseModel):
     chapter_num: int = 1
     grade: int = 7
     duration: int = 45
+    num_students: Optional[int] = None
+    tech_availability: List[str] = []
+    pedagogy: List[str] = []
 
 
 @app.post("/api/generate")
@@ -27,6 +32,9 @@ def generate(body: GenerateRequest):
             chapter_num=body.chapter_num,
             grade=body.grade,
             duration=body.duration,
+            num_students=body.num_students,
+            tech_availability=body.tech_availability,
+            pedagogy=body.pedagogy,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
