@@ -74,6 +74,18 @@ python ingest.py
 The collection is deleted and rebuilt every run, so this is idempotent and the
 chunk ids stay stable. It prints the final `collection.count()`.
 
+**5b. Create the profile database:**
+
+```bash
+python db.py
+```
+
+Creates `./app.db` (SQLite) with the teacher-profile tables and `context_log`.
+Every statement uses `IF NOT EXISTS`, so unlike `ingest.py` this never drops
+existing data — safe to re-run any time. `api.py` also runs this
+automatically on startup, so the manual step is mostly useful for inspecting
+the schema up front.
+
 **6. Smoke-test the pipeline from the command line:**
 
 ```bash
@@ -92,13 +104,49 @@ uvicorn api:app --reload
 
 | Route | Purpose |
 | --- | --- |
-| `POST /api/generate` | Body: `topic` (required), `chapter`, `chapter_num`, `grade`, `duration`. Runs the Content Knowledge agent. |
+| `POST /api/generate` | Body: `topic` (required), `chapter`, `chapter_num`, `grade`, `duration`, `num_students`, `tech_availability`, `pedagogy`, `teacher_id`, `section_name`. Runs the Content Knowledge agent. If `teacher_id` + `section_name` match a saved profile, its `grade`/`num_students`/`tech_availability`/`pedagogy` override whatever the request body sent for them. |
 | `GET /api/chunks/{chunk_id}` | Keyed lookup of one chunk. 404 if the id does not exist. |
+| `POST /api/profile/{teacher_id}/extract` | Body: `section_name`, `narrative` (free text). Runs the Context Agent and returns a draft profile — never saved automatically. |
+| `PUT /api/profile/{teacher_id}` | Body: `teacher`, `section`, `infra`, `pedagogy` (the same shape `/extract` returns, after the teacher has reviewed it). Upserts the profile. |
+| `GET /api/profile/{teacher_id}?section=...` | Reads the saved profile for one teacher/section. 404 if nothing has been saved yet. |
 | `GET /` | The static frontend. Mounted last, as a catch-all. |
 
 Chunk ids look like `g7_ch01_s1.2_000` — grade, chapter, section, index within
 the section. `run_ck` attaches `_retrieved_ids` to its result so the model's
 citations can be checked against what was actually retrieved.
+
+### Teacher profiles
+
+`db.py` defines the schema (`teachers`, `sections`, `section_infra`,
+`section_pedagogy`, `syllabus_progress`, `context_log`) and `teacher_profile.py`
+is the only module that reads or writes it — see its docstrings for the
+read/write functions. `context_agent.py` (prompt: `prompts/context_agent.md`)
+turns a teacher's free-text narrative into a structured draft, using the
+current saved profile as prior context so a short follow-up note updates the
+profile instead of replacing it. Nothing is saved until the teacher confirms
+via `PUT /api/profile/{teacher_id}`.
+
+### Guardrails
+
+`prompts/guardrails.md` is a shared constraints block — stay sensitive to
+the cultural, political, and religious context actually given, never
+produce content offensive or insensitive to a cultural, political, or
+religious group or belief, and don't take a position on contested
+political or religious questions. `agent_prompts.load_agent_prompt()` is
+the only way an agent's `.md` template gets loaded, and it prepends this
+block automatically, so every agent (Context, CK, and future PK/TK) carries
+the identical instruction directly rather than depending on one agent to
+relay it to another.
+
+`context_log` is append-only and write-only by design: `llm.call_agent`
+writes every prompt and raw response there when given a `teacher_id`, but no
+prompt-building code anywhere reads it back. It exists purely as a human-
+readable record of what was said and what was generated, not as context for
+future generations.
+
+Note: this module is named `teacher_profile.py`, not `profile.py` — a file
+named `profile.py` shadows Python's own `profile`/`cProfile` stdlib module
+for anything run from this directory.
 
 ## Troubleshooting
 

@@ -53,10 +53,11 @@
   .field.narrow { flex: 0 1 140px; }
   label { font-size: 12px; color: var(--muted); }
   .hint { font-size: 12px; color: var(--muted); margin: -2px 0 0; }
-  input {
+  input, textarea {
     font: inherit; padding: 8px 10px; border: 1px solid var(--line);
     border-radius: 6px; background: #fff; color: inherit; width: 100%;
   }
+  textarea { resize: vertical; min-height: 64px; }
   fieldset {
     border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px;
     margin: 0;
@@ -118,7 +119,22 @@
     color: var(--err-text); border-radius: 8px; padding: 14px 18px;
     margin-bottom: 16px; white-space: pre-wrap;
   }
+  .ok {
+    background: #eaf3ec; border: 1px solid #b9d6c2; color: #245a37;
+    border-radius: 6px; padding: 8px 12px; font-size: 13px; margin: 0 0 4px;
+  }
   .empty { color: var(--muted); font-size: 14px; }
+  .hidden { display: none; }
+  .screen-banner {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 16px;
+    font-size: 13px; color: var(--muted);
+  }
+  .screen-banner button {
+    font: inherit; color: var(--accent); cursor: pointer; background: none;
+    border: 0; padding: 0; text-decoration: underline;
+  }
 </style>
 </head>
 <body>
@@ -126,7 +142,67 @@
   <h1>Content Knowledge agent</h1>
   <p class="sub">NCERT Science Class 7 &mdash; every claim cites the passage it came from.</p>
 
+  <div id="profileCard" class="form-card">
+    <div class="form-section">
+      <h2 class="form-section-title">Classroom profile</h2>
+      <p class="hint">Set this up once per section &mdash; loaded automatically below from then on. Fields stay editable for a one-off exception on any given lesson.</p>
+
+      <div class="row">
+        <div class="field grow">
+          <label for="teacherId">Teacher ID</label>
+          <input id="teacherId" placeholder="e.g. your email or username">
+        </div>
+        <div class="field grow">
+          <label for="sectionName">Section name</label>
+          <input id="sectionName" value="Section A">
+        </div>
+        <div class="field narrow">
+          <label>&nbsp;</label>
+          <button id="loadProfile" type="button">Load</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field grow">
+          <label for="narrative">Describe your classroom, in your own words</label>
+          <textarea id="narrative" rows="3" placeholder="e.g. I've got about 35 kids, only a projector, no internet, and I mostly lecture."></textarea>
+        </div>
+      </div>
+
+      <div class="form-actions" style="justify-content: flex-start; gap: 10px;">
+        <button id="extractProfile" type="button">Extract from narrative</button>
+        <button id="saveProfile" type="button">Save profile</button>
+      </div>
+
+      <div id="profileStatus"></div>
+      <div id="profileUnclear"></div>
+    </div>
+  </div>
+
+  <section id="screenLesson" class="hidden">
+  <div id="lessonBanner" class="screen-banner">
+    <span id="lessonBannerText"></span>
+    <button id="editProfileLink" type="button">Edit classroom profile</button>
+  </div>
+
   <form id="lessonForm" class="form-card">
+    <div class="form-section">
+      <h2 class="form-section-title">Today's lesson</h2>
+
+      <p class="hint">You can mention: what you want to teach, any particular way you'd like to teach it today, and any technology you want to use (or skip) &mdash; then review the fields below before generating.</p>
+      <div class="row">
+        <div class="field grow">
+          <label for="lessonNarrative">In your own words</label>
+          <textarea id="lessonNarrative" rows="2" placeholder="e.g. Today I want to cover photosynthesis, mostly through group discussion, and I'd like to use the projector."></textarea>
+        </div>
+      </div>
+      <div class="form-actions" style="justify-content: flex-start;">
+        <button id="extractLesson" type="button">Extract from what I said</button>
+      </div>
+      <div id="lessonExtractStatus"></div>
+      <div id="lessonUnclear"></div>
+    </div>
+
     <div class="form-section">
       <h2 class="form-section-title">Lesson</h2>
 
@@ -201,6 +277,7 @@
   <div id="gaps"></div>
   <div id="results"><p class="empty">Fill in the form and press Generate.</p></div>
   <div id="chunk"></div>
+  </section>
 </main>
 
 <script>
@@ -215,6 +292,38 @@
   var gapsEl = document.getElementById("gaps");
   var resultsEl = document.getElementById("results");
   var chunkEl = document.getElementById("chunk");
+
+  var teacherIdEl = document.getElementById("teacherId");
+  var sectionNameEl = document.getElementById("sectionName");
+  var narrativeEl = document.getElementById("narrative");
+  var loadProfileBtn = document.getElementById("loadProfile");
+  var extractProfileBtn = document.getElementById("extractProfile");
+  var saveProfileBtn = document.getElementById("saveProfile");
+  var profileStatusEl = document.getElementById("profileStatus");
+  var profileUnclearEl = document.getElementById("profileUnclear");
+
+  var screenProfile = document.getElementById("profileCard");
+  var screenLesson = document.getElementById("screenLesson");
+  var lessonBannerText = document.getElementById("lessonBannerText");
+  var editProfileLink = document.getElementById("editProfileLink");
+  var lessonNarrativeEl = document.getElementById("lessonNarrative");
+  var extractLessonBtn = document.getElementById("extractLesson");
+  var lessonExtractStatusEl = document.getElementById("lessonExtractStatus");
+  var lessonUnclearEl = document.getElementById("lessonUnclear");
+
+  function showScreen(name) {
+    if (name === "lesson") {
+      screenProfile.classList.add("hidden");
+      screenLesson.classList.remove("hidden");
+      lessonBannerText.textContent =
+        "Classroom profile: " + teacherIdEl.value.trim() + " / " + sectionNameEl.value.trim();
+    } else {
+      screenLesson.classList.add("hidden");
+      screenProfile.classList.remove("hidden");
+    }
+  }
+
+  editProfileLink.addEventListener("click", function () { showScreen("profile"); });
 
   // The database currently only has this one ingested chapter. chapter_num
   // is what actually filters retrieval in ChromaDB (see retrieval.py), so it
@@ -333,6 +442,222 @@
     gapsEl.appendChild(box);
   }
 
+  function showProfileStatus(message, isError) {
+    clear(profileStatusEl);
+    var box = document.createElement("div");
+    box.className = isError ? "err" : "ok";
+    box.textContent = message;
+    profileStatusEl.appendChild(box);
+  }
+
+  function setChecked(name, values) {
+    var boxes = document.querySelectorAll('input[name="' + name + '"]');
+    Array.prototype.forEach.call(boxes, function (b) {
+      b.checked = values.indexOf(b.value) !== -1;
+    });
+  }
+
+  // Populates the same fields the lesson form reads from, whether they came
+  // from a saved profile or a freshly extracted draft — one editable surface
+  // for both "generate today" and "save as my profile".
+  function applyProfileToFields(profile) {
+    if (profile.section && profile.section.grade) gradeEl.value = profile.section.grade;
+    if (profile.section && profile.section.num_students) numStudentsEl.value = profile.section.num_students;
+    if (profile.infra && profile.infra.tech_available && profile.infra.tech_available.length) {
+      setChecked("tech", profile.infra.tech_available);
+    }
+    if (profile.pedagogy && profile.pedagogy.preferred_styles && profile.pedagogy.preferred_styles.length) {
+      setChecked("pedagogy", profile.pedagogy.preferred_styles);
+    }
+  }
+
+  function renderUnclear(items) {
+    clear(profileUnclearEl);
+    if (!items || !items.length) return;
+    var box = document.createElement("div");
+    box.className = "warn";
+    var h2 = document.createElement("h2");
+    h2.textContent = "Worth double-checking before you save";
+    box.appendChild(h2);
+    var ul = document.createElement("ul");
+    items.forEach(function (item) {
+      var li = document.createElement("li");
+      li.textContent = item;
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+    profileUnclearEl.appendChild(box);
+  }
+
+  function loadProfile() {
+    var teacherId = teacherIdEl.value.trim();
+    var section = sectionNameEl.value.trim();
+    clear(profileStatusEl);
+    if (!teacherId || !section) { showProfileStatus("Enter a teacher ID and section name first.", true); return; }
+
+    fetch("/api/profile/" + encodeURIComponent(teacherId) + "?section=" + encodeURIComponent(section))
+      .then(function (res) {
+        if (res.status === 404) return null;
+        if (!res.ok) return res.text().then(function (t) { throw new Error("HTTP " + res.status + ": " + t); });
+        return res.json();
+      })
+      .then(function (profile) {
+        if (!profile) {
+          showProfileStatus("No saved profile yet for " + section + " — describe it below to create one.");
+          return;
+        }
+        applyProfileToFields(profile);
+        showProfileStatus("Loaded profile for " + section + ".");
+        showScreen("lesson");
+      })
+      .catch(function (e) { showProfileStatus(e.message, true); });
+  }
+
+  function extractProfile() {
+    var teacherId = teacherIdEl.value.trim();
+    var section = sectionNameEl.value.trim();
+    var narrative = narrativeEl.value.trim();
+    clear(profileStatusEl);
+    clear(profileUnclearEl);
+    if (!teacherId || !section) { showProfileStatus("Enter a teacher ID and section name first.", true); return; }
+    if (!narrative) { showProfileStatus("Describe your classroom first.", true); return; }
+
+    extractProfileBtn.disabled = true;
+    extractProfileBtn.textContent = "Extracting...";
+
+    fetch("/api/profile/" + encodeURIComponent(teacherId) + "/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section_name: section, narrative: narrative })
+    })
+      .then(function (res) {
+        if (!res.ok) return res.text().then(function (t) { throw new Error("HTTP " + res.status + ": " + t); });
+        return res.json();
+      })
+      .then(function (draft) {
+        applyProfileToFields(draft);
+        renderUnclear(draft.unclear);
+        showProfileStatus("Draft extracted — review the fields below, then Save profile.");
+      })
+      .catch(function (e) { showProfileStatus(e.message, true); })
+      .finally(function () {
+        extractProfileBtn.disabled = false;
+        extractProfileBtn.textContent = "Extract from narrative";
+      });
+  }
+
+  function saveProfile() {
+    var teacherId = teacherIdEl.value.trim();
+    var section = sectionNameEl.value.trim();
+    clear(profileStatusEl);
+    if (!teacherId || !section) { showProfileStatus("Enter a teacher ID and section name first.", true); return; }
+
+    var payload = {
+      teacher: {},
+      section: {
+        name: section,
+        grade: Number(gradeEl.value) || null,
+        num_students: numStudentsEl.value ? Number(numStudentsEl.value) : null
+      },
+      infra: { tech_available: getChecked("tech") },
+      pedagogy: { preferred_styles: getChecked("pedagogy") }
+    };
+
+    saveProfileBtn.disabled = true;
+    saveProfileBtn.textContent = "Saving...";
+
+    fetch("/api/profile/" + encodeURIComponent(teacherId), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(function (res) {
+        if (!res.ok) return res.text().then(function (t) { throw new Error("HTTP " + res.status + ": " + t); });
+        return res.json();
+      })
+      .then(function () {
+        showProfileStatus("Profile saved for " + section + ".");
+        showScreen("lesson");
+      })
+      .catch(function (e) { showProfileStatus(e.message, true); })
+      .finally(function () {
+        saveProfileBtn.disabled = false;
+        saveProfileBtn.textContent = "Save profile";
+      });
+  }
+
+  function showLessonExtractStatus(message, isError) {
+    clear(lessonExtractStatusEl);
+    var box = document.createElement("div");
+    box.className = isError ? "err" : "ok";
+    box.textContent = message;
+    lessonExtractStatusEl.appendChild(box);
+  }
+
+  function renderLessonUnclear(items) {
+    clear(lessonUnclearEl);
+    if (!items || !items.length) return;
+    var box = document.createElement("div");
+    box.className = "warn";
+    var h2 = document.createElement("h2");
+    h2.textContent = "Worth double-checking before you generate";
+    box.appendChild(h2);
+    var ul = document.createElement("ul");
+    items.forEach(function (item) {
+      var li = document.createElement("li");
+      li.textContent = item;
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+    lessonUnclearEl.appendChild(box);
+  }
+
+  // Only overrides a field the narrative actually addressed — topic, and a
+  // one-off pedagogy/tech preference for this lesson. Anything it left
+  // empty keeps whatever the profile already filled in.
+  function applyLessonDraftToFields(draft) {
+    if (draft.topic) topicEl.value = draft.topic;
+    if (draft.tech_today && draft.tech_today.length) setChecked("tech", draft.tech_today);
+    if (draft.pedagogy_today && draft.pedagogy_today.length) setChecked("pedagogy", draft.pedagogy_today);
+  }
+
+  function extractLesson() {
+    var teacherId = teacherIdEl.value.trim();
+    var section = sectionNameEl.value.trim();
+    var narrative = lessonNarrativeEl.value.trim();
+    clear(lessonExtractStatusEl);
+    clear(lessonUnclearEl);
+    if (!narrative) { showLessonExtractStatus("Say what you want to teach first.", true); return; }
+
+    extractLessonBtn.disabled = true;
+    extractLessonBtn.textContent = "Extracting...";
+
+    fetch("/api/lesson-request/" + encodeURIComponent(teacherId || "anonymous") + "/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section_name: section || null, narrative: narrative })
+    })
+      .then(function (res) {
+        if (!res.ok) return res.text().then(function (t) { throw new Error("HTTP " + res.status + ": " + t); });
+        return res.json();
+      })
+      .then(function (draft) {
+        applyLessonDraftToFields(draft);
+        renderLessonUnclear(draft.unclear);
+        showLessonExtractStatus("Filled in below from what you said — review, then Generate.");
+      })
+      .catch(function (e) { showLessonExtractStatus(e.message, true); })
+      .finally(function () {
+        extractLessonBtn.disabled = false;
+        extractLessonBtn.textContent = "Extract from what I said";
+      });
+  }
+
+  loadProfileBtn.addEventListener("click", loadProfile);
+  extractProfileBtn.addEventListener("click", extractProfile);
+  saveProfileBtn.addEventListener("click", saveProfile);
+  extractLessonBtn.addEventListener("click", extractLesson);
+
   function generate(event) {
     if (event) event.preventDefault();
 
@@ -355,7 +680,9 @@
       duration: Number(durationEl.value) || 45,
       num_students: numStudentsEl.value ? Number(numStudentsEl.value) : null,
       tech_availability: getChecked("tech"),
-      pedagogy: getChecked("pedagogy")
+      pedagogy: getChecked("pedagogy"),
+      teacher_id: teacherIdEl.value.trim() || null,
+      section_name: sectionNameEl.value.trim() || null
     };
 
     fetch("/api/generate", {

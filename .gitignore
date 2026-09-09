@@ -1,5 +1,6 @@
 venv/
 .env
 chroma_store/
+app.db
 __pycache__/
 *.pyc

@@ -6,6 +6,8 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from teacher_profile import log_agent_call
+
 load_dotenv()
 
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
@@ -17,8 +19,14 @@ client = OpenAI(
 )
 
 
-def call_agent(prompt: str) -> dict:
-    """Send one prompt, expect a JSON object back, return it parsed."""
+def call_agent(prompt: str, *, teacher_id=None, section_id=None, agent_name=None) -> dict:
+    """Send one prompt, expect a JSON object back, return it parsed.
+
+    If `teacher_id` is given, the prompt and raw response are appended to
+    context_log for audit purposes only — every agent call passes through
+    here, so this is the one place that record is written, and nothing
+    reads it back into a future prompt.
+    """
     response = client.chat.completions.create(
         model=MODEL,
         messages=[{"role": "user", "content": prompt}],
@@ -27,6 +35,16 @@ def call_agent(prompt: str) -> dict:
     )
 
     raw = response.choices[0].message.content or ""
+
+    if teacher_id is not None:
+        log_agent_call(
+            teacher_id=teacher_id,
+            section_id=section_id,
+            agent_name=agent_name,
+            prompt_text=prompt,
+            raw_response=raw,
+        )
+
     text = raw.strip()
 
     # Some models wrap JSON in a fenced block despite response_format.

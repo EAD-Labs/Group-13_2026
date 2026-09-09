@@ -2,11 +2,12 @@
 
 import json
 
+from agent_prompts import load_agent_prompt
 from llm import call_agent
+from teacher_profile import record_syllabus_progress
 from retrieval import format_chunks, retrieve
 
-with open("prompts/ck_agent.md", encoding="utf-8") as f:
-    CK_PROMPT = f.read()
+CK_PROMPT = load_agent_prompt("prompts/ck_agent.md")
 
 
 def _format_list(values):
@@ -25,6 +26,8 @@ def run_ck(
     num_students=None,
     tech_availability=None,
     pedagogy=None,
+    teacher_id=None,
+    section_id=None,
 ):
     """Run the Content Knowledge agent for one topic."""
     chunks = retrieve(topic, chapter_num=chapter_num)
@@ -38,9 +41,13 @@ def run_ck(
         pedagogy=_format_list(pedagogy),
         chunks=format_chunks(chunks),
     )
-    result = call_agent(prompt)
+    result = call_agent(prompt, teacher_id=teacher_id, section_id=section_id, agent_name="ck_agent")
     # So callers can check the model's citations against what was actually given.
     result["_retrieved_ids"] = [c["id"] for c in chunks]
+
+    if section_id is not None:
+        record_syllabus_progress(section_id, chapter, topic)
+
     return result
 
 

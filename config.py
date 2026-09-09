@@ -4,6 +4,8 @@ CHROMA_PATH = "./chroma_store"
 COLLECTION_NAME = "ncert_g7_biology"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
+DB_PATH = "./app.db"
+
 GRADE = 7
 SOURCE = "NCERT Science Class 7"
 
