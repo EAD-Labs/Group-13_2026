@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AgentTPACK — Content Knowledge</title>
+<title>AgentTPACK Lesson Designer</title>
 <style>
   :root {
     --bg: #f6f7f9;
@@ -12,6 +12,16 @@
     --text: #1c1f23;
     --muted: #5b6470;
     --accent: #2f5d8a;
+    --accent-hover: #24486b;
+    --accent-soft: #e4edf6;
+    --on-accent: #ffffff;
+    --section-bg: #eef2f6;
+    --input-bg: #ffffff;
+    --disabled: #9aa5b1;
+    --ok: #2e7d4f;
+    --ok-bg: #e7f5ec;
+    --board-bg: #2f4f3a;
+    --board-text: #f3f6f1;
     --warn-bg: #fff6e5;
     --warn-line: #e0b25c;
     --warn-text: #6b4a06;
@@ -19,259 +29,1439 @@
     --err-line: #d98a8a;
     --err-text: #7a1f1f;
   }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171b;
+      --card: #1d2126;
+      --line: #343a42;
+      --text: #e6e9ed;
+      --muted: #9aa4b0;
+      --accent: #7fb0e0;
+      --accent-hover: #a3c8ec;
+      --accent-soft: #22303e;
+      --on-accent: #10161c;
+      --section-bg: #181c21;
+      --input-bg: #14171b;
+      --disabled: #4a525c;
+      --ok: #6fcf97;
+      --ok-bg: #15301f;
+      --board-bg: #22382a;
+      --board-text: #e8efe6;
+      --warn-bg: #2d2412;
+      --warn-line: #8a6a2a;
+      --warn-text: #f0d49a;
+      --err-bg: #2e1718;
+      --err-line: #8a4a4a;
+      --err-text: #f3b4b4;
+    }
+  }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     padding: 32px 16px 64px;
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                 Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     line-height: 1.55;
   }
-  main { max-width: 760px; margin: 0 auto; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
+  main { max-width: 800px; margin: 0 auto; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
   .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
-  .controls {
-    display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
-    background: var(--card); border: 1px solid var(--line);
-    border-radius: 8px; padding: 16px; margin-bottom: 24px;
+  [hidden] { display: none !important; }
+
+  /* Stepper */
+  .stepper { display: flex; gap: 8px; list-style: none; padding: 0; margin: 0 0 20px; flex-wrap: wrap; }
+  .stepper li { flex: 1 1 120px; }
+  .stepper button {
+    width: 100%; font: inherit; font-size: 13px; text-align: left;
+    padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--card); color: var(--muted); cursor: default;
   }
-  .field { display: flex; flex-direction: column; gap: 4px; }
-  .field.grow { flex: 1 1 260px; }
-  label { font-size: 12px; color: var(--muted); text-transform: uppercase;
-          letter-spacing: .04em; }
-  input {
-    font: inherit; padding: 8px 10px; border: 1px solid var(--line);
-    border-radius: 6px; background: #fff; color: inherit; width: 100%;
+  .stepper button .n { font-weight: 700; margin-right: 6px; }
+  .stepper button[aria-current="step"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .stepper button.done { color: var(--text); cursor: pointer; }
+  .stepper button.done .n { color: var(--ok); }
+  .stepper button.has-error { border-color: var(--err-line); color: var(--err-text); }
+
+  /* Screens */
+  .screen {
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: 24px; margin-bottom: 24px;
   }
-  button {
-    font: inherit; font-weight: 600; padding: 9px 18px; border: 0;
-    border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer;
+  .screen > h2 { font-size: 20px; margin: 0 0 4px; }
+  .screen > .hint { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+
+  .welcome ol { padding-left: 20px; margin: 0 0 20px; }
+  .welcome li { margin-bottom: 6px; }
+
+  .form-section {
+    display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; margin-bottom: 16px;
+    background: var(--section-bg); border-radius: 6px; border: 1px solid var(--line);
   }
-  button:disabled { background: #9aa5b1; cursor: not-allowed; }
+  .form-section h3 {
+    width: 100%; margin: 0 0 4px; font-size: 13px; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--accent);
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; flex: 1 1 200px; min-width: 0; }
+  .field.grow { flex: 2 1 300px; }
+  .field.full { flex: 1 1 100%; }
+  label { font-size: 12px; font-weight: 600; }
+  label .req { color: var(--err-text); margin-left: 2px; }
+  label .opt { color: var(--muted); font-weight: 400; }
+  input, select, textarea {
+    font: inherit; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 6px; background: var(--input-bg); color: inherit; width: 100%;
+    transition: border-color 0.2s;
+  }
+  textarea { min-height: 64px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  [aria-invalid="true"] { border-color: var(--err-line); background: var(--err-bg); }
+  .field-error { font-size: 12px; color: var(--err-text); min-height: 0; }
+  .field-error:empty { display: none; }
+
+  .nav-row { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+  .nav-row .spacer { flex: 1; }
+  button.primary-btn, button.secondary-btn {
+    font: inherit; font-weight: 600; padding: 12px 24px; border-radius: 6px; cursor: pointer;
+    transition: background 0.2s;
+  }
+  button.primary-btn { border: 0; background: var(--accent); color: var(--on-accent); }
+  button.primary-btn:hover:not(:disabled) { background: var(--accent-hover); }
+  button.primary-btn:disabled { background: var(--disabled); cursor: not-allowed; }
+  button.secondary-btn { border: 1px solid var(--line); background: var(--card); color: var(--text); }
+  button.secondary-btn:hover { border-color: var(--accent); }
+  button.link-btn { font: inherit; font-size: 13px; background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; text-decoration: underline; }
+
+  /* Review */
+  .review-section { border: 1px solid var(--line); border-radius: 6px; padding: 12px 16px; margin-bottom: 12px; }
+  .review-section header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .review-section h3 { font-size: 14px; margin: 0; color: var(--accent); }
+  dl.summary { display: grid; grid-template-columns: minmax(120px, 40%) 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
+  dl.summary dt { color: var(--muted); }
+  dl.summary dd { margin: 0; overflow-wrap: anywhere; }
+
+  /* Loading */
+  .loading { text-align: center; padding: 40px 24px; }
+  .spinner {
+    width: 36px; height: 36px; margin: 0 auto 16px; border-radius: 50%;
+    border: 3px solid var(--line); border-top-color: var(--accent);
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+  .pipeline { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--muted); list-style: none; padding: 0; margin: 12px 0 0; }
+  .pipeline li:not(:last-child)::after { content: "→"; margin-left: 6px; }
+
+  /* Results */
   .card {
     background: var(--card); border: 1px solid var(--line);
-    border-radius: 8px; padding: 16px 18px; margin-bottom: 16px;
+    border-radius: 8px; padding: 20px; margin-bottom: 16px;
   }
-  .card h2 { font-size: 16px; margin: 0 0 8px; }
-  .card p { margin: 0 0 12px; white-space: pre-wrap; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .card h2 { font-size: 18px; margin: 0 0 12px; color: var(--accent); }
+  .card h3 { font-size: 15px; margin: 0 0 8px; }
+  .card p { margin: 0 0 16px; white-space: pre-wrap; }
+  .card ul { margin: 0; padding-left: 20px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 11px; padding: 3px 8px; border-radius: 999px;
-    border: 1px solid var(--line); background: #eef2f6; color: var(--accent);
-    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px; padding: 4px 10px; border-radius: 999px;
+    border: 1px solid var(--accent); background: var(--card); color: var(--accent);
+    cursor: pointer; font-weight: 500; transition: all 0.2s;
   }
-  .chip:hover { background: #e2e9f1; }
+  .chip:hover { background: var(--accent); color: var(--on-accent); }
   .panel {
-    background: var(--card); border: 1px solid var(--accent);
-    border-radius: 8px; padding: 16px 18px; margin-bottom: 16px;
+    background: var(--card); border: 2px solid var(--accent);
+    border-radius: 8px; padding: 16px 20px; margin-bottom: 16px;
   }
-  .panel .cid {
-    font-size: 14px; margin: 0 0 4px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
-  .panel .meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .panel .cid { font-size: 14px; margin: 0 0 4px; font-weight: bold; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+  .panel .meta { font-size: 12px; color: var(--muted); margin-bottom: 12px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
   .panel .body { white-space: pre-wrap; }
-  .warn {
-    background: var(--warn-bg); border: 1px solid var(--warn-line);
-    color: var(--warn-text); border-radius: 8px; padding: 14px 18px;
-    margin-bottom: 16px;
+  .status-available { color: var(--ok); font-weight: 600; }
+  .status-unavailable { color: var(--err-text); font-weight: 600; }
+  .status-conditionally_available { color: var(--warn-text); font-weight: 600; }
+  .sequence { font-size: 13px; color: var(--muted); }
+  .sequence ol { padding-left: 20px; margin: 4px 0 8px; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+
+  .warn, .err { border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .warn { background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warn-text); }
+  .err { background: var(--err-bg); border: 1px solid var(--err-line); color: var(--err-text); }
+  .warn h2, .err h2 { font-size: 16px; margin: 0 0 8px; }
+  .warn ul, .err ul { margin: 0 0 8px; padding-left: 20px; }
+  .err .trace { font-size: 12px; margin: 8px 0; }
+  .err button { margin-top: 4px; }
+
+  /* Result: tabs + sticky download bar */
+  .result-bar {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    background: var(--bg); padding: 12px 0; margin-bottom: 12px; border-bottom: 1px solid var(--line);
   }
-  .warn h2 { font-size: 15px; margin: 0 0 6px; }
-  .warn ul { margin: 0; padding-left: 20px; }
-  .err {
-    background: var(--err-bg); border: 1px solid var(--err-line);
-    color: var(--err-text); border-radius: 8px; padding: 14px 18px;
-    margin-bottom: 16px; white-space: pre-wrap;
+  .tabs { display: flex; gap: 4px; }
+  .tabs button {
+    font: inherit; font-size: 15px; padding: 8px 16px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text); border-radius: 6px; cursor: pointer;
   }
-  .empty { color: var(--muted); font-size: 14px; }
+  .tabs button[aria-selected="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+  .tab-status { font-size: 11px; margin-left: 6px; opacity: 0.85; }
+  button.small { padding: 8px 14px; font-size: 14px; }
+
+  .overview .meta { color: var(--muted); font-size: 14px; margin: -6px 0 12px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .checklist { list-style: none; padding: 0 !important; margin: 0; }
+  .checklist li + li { margin-top: 4px; }
+  .checklist label { display: flex; gap: 8px; align-items: flex-start; font-size: 15px; font-weight: 400; cursor: pointer; }
+  .checklist input { width: auto; padding: 0; margin: 5px 0 0; flex: none; accent-color: var(--accent); }
+  .checklist input:checked + span { text-decoration: line-through; color: var(--muted); }
+  .timeline { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0 !important; margin: 14px 0 0; }
+  .badge {
+    display: inline-block; font-size: 12px; padding: 2px 9px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent); font-weight: 600; white-space: nowrap;
+  }
+
+  .phase-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .phase-head h2 { margin: 0; }
+  .phase-sec { margin-top: 16px; }
+  .phase-sec h3, .card .phase-sec h3 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 0 0 6px;
+  }
+  .phase ol, .phase ul, .handout ol { margin: 0; padding-left: 22px; }
+  .phase li + li, .handout li + li { margin-top: 6px; }
+  .board {
+    background: var(--board-bg); color: var(--board-text); border-radius: 6px;
+    padding: 12px 16px; white-space: pre-wrap; font-size: 15px; line-height: 1.6;
+  }
+  .expected { color: var(--muted); font-size: 14px; }
+  .fallback {
+    margin-top: 16px; padding: 10px 12px; border-left: 3px solid var(--warn-line);
+    background: var(--warn-bg); color: var(--warn-text); border-radius: 4px; font-size: 14px;
+  }
+  .sources { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--muted); }
+  .passages { margin-top: 10px; }
+  .passages .panel { margin-bottom: 8px; }
+  .inline-err { color: var(--err-text); font-size: 14px; margin: 8px 0 0; }
+
+  details.card > summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+  details.card[open] > summary { margin-bottom: 12px; }
+  .hint-small { color: var(--muted); font-size: 13px; margin: 0 0 8px; }
+  .missing-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+  .missing-row .q { flex: 1 1 100%; }
+  .missing-row select, .missing-row input { flex: 1 1 200px; width: auto; }
+  .missing-row .field-error { flex: 1 1 100%; }
+
+  .inline-loading { display: flex; gap: 12px; align-items: center; }
+  .inline-loading .spinner { width: 22px; height: 22px; border-width: 2px; margin: 0; flex: none; }
+
+  .answer-space { height: 44px; border-bottom: 1px dashed var(--line); margin: 2px 0 8px; }
+  .options { display: grid; gap: 8px; margin-top: 10px; }
+  .option {
+    text-align: left; font: inherit; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 6px; background: var(--card); color: var(--text); cursor: pointer;
+  }
+  .option:hover:not(:disabled) { border-color: var(--accent); }
+  .option:disabled { cursor: default; }
+  .option.correct { border-color: var(--ok); background: var(--ok-bg); }
+  .option.incorrect { border-color: var(--err-line); background: var(--err-bg); }
+  .option .letter { font-weight: 700; margin-right: 8px; }
+  .feedback { margin-top: 10px; font-size: 14px; }
+  .feedback:focus { outline: none; }
+  .feedback strong.ok { color: var(--ok); }
+  .feedback strong.no { color: var(--err-text); }
+  .quiz-score { font-weight: 600; }
+
+  .print-only { display: none; }
+
+  @media (max-width: 520px) {
+    body { padding: 20px 16px 48px; }
+    .screen { padding: 16px; }
+    .form-section { padding: 12px; }
+    dl.summary { grid-template-columns: 1fr; }
+    dl.summary dd { margin-bottom: 6px; }
+    .nav-row button { flex: 1 1 auto; }
+    .result-bar { gap: 8px; }
+    .result-bar > * { flex: 1 1 100%; }
+    .tabs button { flex: 1; padding: 8px 6px; }
+    .result-bar .primary-btn { padding: 10px 16px; }
+    .two-col { grid-template-columns: 1fr; }
+    .card { padding: 16px; }
+  }
+
+  /* Teacher pack: printed / saved as PDF via window.print() */
+  @media print {
+    @page { size: A4; margin: 15mm; }
+    html, body { background: #fff !important; color: #000 !important; margin: 0; padding: 0; font-size: 11pt; }
+    main { max-width: none; }
+    /* Only swap the screen for the pack once a lesson exists. */
+    body.has-pack main > * { display: none !important; }
+    body.has-pack main > #print-pack { display: block !important; }
+    #print-pack { color: #000; line-height: 1.45; }
+    #print-pack .page + .page { break-before: page; }
+    #print-pack h1 { font-size: 18pt; margin: 0 0 4pt; }
+    #print-pack h2 { font-size: 13pt; margin: 14pt 0 4pt; padding-bottom: 2pt; border-bottom: 1px solid #000; break-after: avoid; }
+    #print-pack h3 { font-size: 9pt; text-transform: uppercase; letter-spacing: 0.05em; margin: 8pt 0 2pt; break-after: avoid; }
+    #print-pack p { margin: 0 0 6pt; }
+    #print-pack ol, #print-pack ul { margin: 0 0 4pt; padding-left: 18pt; }
+    #print-pack .pp-meta { color: #333; margin-bottom: 8pt; }
+    #print-pack .pp-check { list-style: none; padding-left: 0; }
+    #print-pack .pp-check li::before { content: "\2610  "; }
+    #print-pack .pp-board { border: 1px solid #000; padding: 6pt 8pt; white-space: pre-wrap; }
+    #print-pack .pp-fallback { border-left: 2pt solid #000; padding-left: 6pt; }
+    #print-pack .pp-q { break-inside: avoid; margin-bottom: 8pt; }
+    #print-pack .pp-line { border-bottom: 1px solid #777; height: 22pt; }
+    #print-pack .pp-name { margin: 6pt 0 12pt; }
+    #print-pack .pp-small { font-size: 9pt; color: #333; }
+    #print-pack .pp-note { font-style: italic; }
+  }
 </style>
 </head>
 <body>
 <main>
-  <h1>Content Knowledge agent</h1>
-  <p class="sub">NCERT Science Class 7 &mdash; every claim cites the passage it came from.</p>
+  <h1>AgentTPACK Lesson Designer</h1>
+  <p class="sub">NCERT Science Class 7 &mdash; grounded in Content, Pedagogy and Technology.</p>
 
-  <div class="controls">
-    <div class="field grow">
-      <label for="topic">Topic</label>
-      <input id="topic" value="photosynthesis">
-    </div>
-    <div class="field">
-      <label for="duration">Duration (min)</label>
-      <input id="duration" type="number" min="5" max="240" value="45">
-    </div>
-    <div class="field">
-      <button id="go">Generate</button>
-    </div>
-  </div>
+  <ol class="stepper" id="stepper" hidden>
+    <li><button type="button" data-goto="1"><span class="n">1</span>Content</button></li>
+    <li><button type="button" data-goto="2"><span class="n">2</span>Learners &amp; pedagogy</button></li>
+    <li><button type="button" data-goto="3"><span class="n">3</span>Classroom technology</button></li>
+    <li><button type="button" data-goto="4"><span class="n">4</span>Review</button></li>
+  </ol>
 
-  <div id="error"></div>
-  <div id="gaps"></div>
-  <div id="results"><p class="empty">Enter a topic and press Generate.</p></div>
-  <div id="chunk"></div>
+  <div id="error" aria-live="assertive"></div>
+
+  <!-- 0. Welcome -->
+  <section class="screen welcome" data-screen="0">
+    <h2>Design a lesson</h2>
+    <p class="hint">Answer a few questions about your lesson, your learners and your classroom. Four AI agents then work on it in turn:</p>
+    <ol>
+      <li><strong>Content</strong> reads the NCERT chapter and picks out the key ideas and misconceptions.</li>
+      <li><strong>Pedagogy</strong> plans the sequence of activities for your class and time.</li>
+      <li><strong>Technology</strong> checks what tools you actually have.</li>
+      <li><strong>Integration</strong> combines all three into one lesson plan, with every content claim linked to the textbook passage it came from.</li>
+    </ol>
+    <div class="nav-row">
+      <span class="spacer"></span>
+      <button type="button" class="primary-btn" id="start">Start</button>
+    </div>
+  </section>
+
+  <form id="wizard" novalidate>
+    <!-- 1. Content -->
+    <section class="screen" data-screen="1" hidden>
+      <h2>1. Content</h2>
+      <p class="hint">What is the lesson about?</p>
+      <div class="form-section">
+        <div class="field full">
+          <label for="f-chapter">Chapter<span class="req">*</span></label>
+          <select id="f-chapter" data-field="content.chapter_num" data-type="int" required>
+            <option value="1">Chapter 1 &mdash; Nutrition in Plants</option>
+          </select>
+          <div class="field-error" id="e-content.chapter_num"></div>
+        </div>
+        <div class="field grow">
+          <label for="f-topic">Topic / concept<span class="req">*</span></label>
+          <input id="f-topic" data-field="content.topic" required minlength="2" maxlength="120" placeholder="e.g. Photosynthesis">
+          <div class="field-error" id="e-content.topic"></div>
+        </div>
+        <div class="field">
+          <label for="f-duration">Duration (minutes)<span class="req">*</span></label>
+          <input id="f-duration" data-field="content.duration" data-type="int" type="number" required min="10" max="180" value="45">
+          <div class="field-error" id="e-content.duration"></div>
+        </div>
+      </div>
+      <div class="nav-row">
+        <button type="button" class="secondary-btn" data-back>Back</button>
+        <button type="button" class="primary-btn" data-next>Next</button>
+      </div>
+    </section>
+
+    <!-- 2. Learners & pedagogy -->
+    <section class="screen" data-screen="2" hidden>
+      <h2>2. Learners &amp; pedagogy</h2>
+      <p class="hint">Who are you teaching, and how would you like to teach?</p>
+      <div class="form-section">
+        <h3>Learners</h3>
+        <div class="field">
+          <label for="f-class-size">Number of students<span class="req">*</span></label>
+          <input id="f-class-size" data-field="learners.class_size" data-type="int" type="number" required min="1" max="200" value="40">
+          <div class="field-error" id="e-learners.class_size"></div>
+        </div>
+        <div class="field">
+          <label for="f-prior">Prior knowledge<span class="req">*</span></label>
+          <select id="f-prior" data-field="learners.prior_knowledge" required>
+            <option value="">Choose&hellip;</option>
+            <option value="new">New topic</option>
+            <option value="partial">Partial exposure</option>
+            <option value="revision">Revision</option>
+          </select>
+          <div class="field-error" id="e-learners.prior_knowledge"></div>
+        </div>
+        <div class="field">
+          <label for="f-language">Language of instruction <span class="opt">(optional)</span></label>
+          <input id="f-language" data-field="learners.language_of_instruction" maxlength="60" placeholder="e.g. English, Hindi">
+          <div class="field-error" id="e-learners.language_of_instruction"></div>
+        </div>
+        <div class="field full">
+          <label for="f-access">Accessibility or inclusion needs <span class="opt">(optional)</span></label>
+          <textarea id="f-access" data-field="learners.accessibility_needs" maxlength="300" placeholder="e.g. two students with low vision"></textarea>
+          <div class="field-error" id="e-learners.accessibility_needs"></div>
+        </div>
+        <div class="field full">
+          <label for="f-continuity">Continuity from the previous lesson <span class="opt">(optional)</span></label>
+          <textarea id="f-continuity" data-field="learners.continuity_notes" maxlength="300"></textarea>
+          <div class="field-error" id="e-learners.continuity_notes"></div>
+        </div>
+      </div>
+      <div class="form-section">
+        <h3>Pedagogy</h3>
+        <div class="field">
+          <label for="f-method">Instructional method<span class="req">*</span></label>
+          <select id="f-method" data-field="pedagogy.method" required>
+            <option value="5E">5E model (Engage, Explore, Explain&hellip;)</option>
+            <option value="inquiry">Inquiry-based learning</option>
+            <option value="direct">Explicit / direct instruction</option>
+            <option value="socratic">Socratic dialogue</option>
+          </select>
+          <div class="field-error" id="e-pedagogy.method"></div>
+        </div>
+        <div class="field">
+          <label for="f-blooms">Cognitive goal (Bloom's)<span class="req">*</span></label>
+          <select id="f-blooms" data-field="pedagogy.blooms_focus" required>
+            <option value="understand">Remember &amp; understand</option>
+            <option value="analyze">Apply &amp; analyze</option>
+            <option value="create">Evaluate &amp; create</option>
+          </select>
+          <div class="field-error" id="e-pedagogy.blooms_focus"></div>
+        </div>
+        <div class="field">
+          <label for="f-format">Classroom format <span class="opt">(optional)</span></label>
+          <select id="f-format" data-field="learners.classroom_format">
+            <option value="">Not specified</option>
+            <option value="whole_class">Whole-class</option>
+            <option value="small_groups">Small groups</option>
+            <option value="pairs">Pairs</option>
+            <option value="mixed">Mixed</option>
+          </select>
+          <div class="field-error" id="e-learners.classroom_format"></div>
+        </div>
+        <div class="field">
+          <label for="f-assessment">Assessment style <span class="opt">(optional)</span></label>
+          <select id="f-assessment" data-field="learners.assessment_style">
+            <option value="">Not specified</option>
+            <option value="formative">Formative</option>
+            <option value="summative">Summative</option>
+            <option value="none">None</option>
+          </select>
+          <div class="field-error" id="e-learners.assessment_style"></div>
+        </div>
+      </div>
+      <div class="nav-row">
+        <button type="button" class="secondary-btn" data-back>Back</button>
+        <button type="button" class="primary-btn" data-next>Next</button>
+      </div>
+    </section>
+
+    <!-- 3. Classroom technology -->
+    <section class="screen" data-screen="3" hidden>
+      <h2>3. Classroom technology</h2>
+      <p class="hint">What do you actually have in the room? The plan will only use what is available.</p>
+      <div class="form-section">
+        <h3>Setup</h3>
+        <div class="field">
+          <label for="f-infra">Main setup<span class="req">*</span></label>
+          <select id="f-infra" data-field="technology.infrastructure" required>
+            <option value="projector">Teacher smart board / projector</option>
+            <option value="1to1">1:1 student devices</option>
+            <option value="lab">Computer lab</option>
+            <option value="lowtech">Low-tech (blackboard / printouts)</option>
+          </select>
+          <div class="field-error" id="e-technology.infrastructure"></div>
+        </div>
+        <div class="field">
+          <label for="f-devices">Student devices<span class="req">*</span></label>
+          <select id="f-devices" data-field="technology.student_devices" required>
+            <option value="">Choose&hellip;</option>
+            <option value="none">None</option>
+            <option value="shared">Shared (a few per class)</option>
+            <option value="1to1">One per student</option>
+          </select>
+          <div class="field-error" id="e-technology.student_devices"></div>
+        </div>
+        <div class="field">
+          <label for="f-internet">Internet access<span class="req">*</span></label>
+          <select id="f-internet" data-field="technology.internet_access" required>
+            <option value="">Choose&hellip;</option>
+            <option value="reliable">Reliable</option>
+            <option value="unreliable">Unreliable</option>
+            <option value="none">None</option>
+          </select>
+          <div class="field-error" id="e-technology.internet_access"></div>
+        </div>
+        <div class="field">
+          <label for="f-projector">Projector available <span class="opt">(optional)</span></label>
+          <select id="f-projector" data-field="technology.projector_available" data-type="bool">
+            <option value="">Not specified</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+          <div class="field-error" id="e-technology.projector_available"></div>
+        </div>
+        <div class="field">
+          <label for="f-smartboard">Smart board available <span class="opt">(optional)</span></label>
+          <select id="f-smartboard" data-field="technology.smart_board_available" data-type="bool">
+            <option value="">Not specified</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+          <div class="field-error" id="e-technology.smart_board_available"></div>
+        </div>
+        <div class="field">
+          <label for="f-board">Board type <span class="opt">(optional)</span></label>
+          <select id="f-board" data-field="technology.board_type">
+            <option value="">Not specified</option>
+            <option value="blackboard">Blackboard</option>
+            <option value="whiteboard">Whiteboard</option>
+            <option value="none">None</option>
+          </select>
+          <div class="field-error" id="e-technology.board_type"></div>
+        </div>
+      </div>
+      <div class="form-section">
+        <h3>Tools &amp; constraints</h3>
+        <div class="field full">
+          <label for="f-tools">Tools you'd like to use <span class="opt">(optional)</span></label>
+          <input id="f-tools" data-field="technology.tools" maxlength="200" placeholder="e.g. PhET, Kahoot, YouTube">
+          <div class="field-error" id="e-technology.tools"></div>
+        </div>
+        <div class="field full">
+          <label for="f-physical">Physical tools in the room <span class="opt">(optional)</span></label>
+          <input id="f-physical" data-field="technology.physical_tools_available" maxlength="300" placeholder="e.g. leaf specimens, charts, magnifying glasses">
+          <div class="field-error" id="e-technology.physical_tools_available"></div>
+        </div>
+        <div class="field">
+          <label for="f-comfort">Your comfort with technology <span class="opt">(optional)</span></label>
+          <select id="f-comfort" data-field="technology.teacher_tech_comfort">
+            <option value="">Not specified</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+          <div class="field-error" id="e-technology.teacher_tech_comfort"></div>
+        </div>
+        <div class="field">
+          <label for="f-budget">Budget <span class="opt">(optional)</span></label>
+          <select id="f-budget" data-field="technology.budget_constraint">
+            <option value="">Not specified</option>
+            <option value="free_only">Free tools only</option>
+            <option value="paid_allowed">Paid tools allowed</option>
+          </select>
+          <div class="field-error" id="e-technology.budget_constraint"></div>
+        </div>
+        <div class="field">
+          <label for="f-home">Students' home device access <span class="opt">(optional)</span></label>
+          <select id="f-home" data-field="technology.home_device_access">
+            <option value="">Not specified</option>
+            <option value="most">Most students</option>
+            <option value="some">Some students</option>
+            <option value="few">Few students</option>
+            <option value="none">None</option>
+          </select>
+          <div class="field-error" id="e-technology.home_device_access"></div>
+        </div>
+        <div class="field full">
+          <label for="f-policy">School policy restrictions <span class="opt">(optional)</span></label>
+          <input id="f-policy" data-field="technology.policy_restrictions" maxlength="300" placeholder="e.g. no phones in class">
+          <div class="field-error" id="e-technology.policy_restrictions"></div>
+        </div>
+        <div class="field full">
+          <label for="f-other">Anything else for this lesson <span class="opt">(optional)</span></label>
+          <textarea id="f-other" data-field="other_requests" maxlength="300"></textarea>
+          <div class="field-error" id="e-other_requests"></div>
+        </div>
+      </div>
+      <div class="nav-row">
+        <button type="button" class="secondary-btn" data-back>Back</button>
+        <button type="button" class="primary-btn" data-next>Review</button>
+      </div>
+    </section>
+
+    <!-- 4. Review -->
+    <section class="screen" data-screen="4" hidden>
+      <h2>4. Review</h2>
+      <p class="hint">Check your answers, then generate the lesson. Generating usually takes under a minute.</p>
+      <div id="review"></div>
+      <div class="nav-row">
+        <button type="button" class="secondary-btn" data-back>Back</button>
+        <button type="button" class="primary-btn" id="generate">Generate lesson</button>
+      </div>
+    </section>
+  </form>
+
+  <!-- 5. Loading -->
+  <section class="screen loading" data-screen="5" hidden aria-busy="true">
+    <div class="spinner" aria-hidden="true"></div>
+    <h2>Designing your lesson&hellip;</h2>
+    <ol class="pipeline" aria-label="Agents in order">
+      <li>Content</li><li>Pedagogy</li><li>Technology</li><li>Integration</li>
+    </ol>
+  </section>
+
+  <!-- 6. Result -->
+  <section data-screen="6" hidden>
+    <div class="result-bar">
+      <div class="tabs" role="tablist" aria-label="Lesson sections">
+        <button type="button" role="tab" id="tab-plan" aria-controls="panel-plan" aria-selected="true">Plan</button>
+        <button type="button" role="tab" id="tab-handouts" aria-controls="panel-handouts" aria-selected="false" tabindex="-1">Handouts<span class="tab-status"></span></button>
+        <button type="button" role="tab" id="tab-quiz" aria-controls="panel-quiz" aria-selected="false" tabindex="-1">Quiz<span class="tab-status"></span></button>
+      </div>
+      <button type="button" class="primary-btn" id="download">Download teacher pack</button>
+    </div>
+    <div role="tabpanel" id="panel-plan" aria-labelledby="tab-plan"></div>
+    <div role="tabpanel" id="panel-handouts" aria-labelledby="tab-handouts" hidden aria-live="polite"></div>
+    <div role="tabpanel" id="panel-quiz" aria-labelledby="tab-quiz" hidden aria-live="polite"></div>
+    <div class="nav-row">
+      <button type="button" class="secondary-btn" id="edit-inputs">Edit inputs</button>
+      <button type="button" class="primary-btn" id="new-lesson">Start a new lesson</button>
+    </div>
+  </section>
+
+  <!-- Teacher pack for printing / Save as PDF. Built from the same data as the tabs. -->
+  <div id="print-pack" class="print-only"></div>
 </main>
 
 <script>
-  var topicEl = document.getElementById("topic");
-  var durationEl = document.getElementById("duration");
-  var goEl = document.getElementById("go");
-  var errorEl = document.getElementById("error");
-  var gapsEl = document.getElementById("gaps");
-  var resultsEl = document.getElementById("results");
-  var chunkEl = document.getElementById("chunk");
+(function () {
+  "use strict";
 
-  function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+  const STEP_COUNT = 4;
+  const SCREEN = { welcome: 0, review: 4, loading: 5, result: 6 };
+  const STEP_TITLES = { 1: "Content", 2: "Learners & pedagogy", 3: "Classroom technology" };
+  // Which wizard step owns each top-level request section (for server errors).
+  const SECTION_STEP = { content: 1, learners: 2, pedagogy: 2, technology: 3, other_requests: 3 };
 
-  function showError(message) {
-    clear(errorEl);
-    var box = document.createElement("div");
-    box.className = "err";
-    box.textContent = message;
-    errorEl.appendChild(box);
+  const $ = (sel, root) => (root || document).querySelector(sel);
+  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+
+  const state = {
+    screen: SCREEN.welcome, furthest: 0, traceId: null, lastPayload: null,
+    // Result screen
+    result: null, materials: null, materialsError: null, materialsToken: 0, quizAnswers: {},
+  };
+
+  // ---------- DOM helpers (textContent only; never innerHTML with data) ----------
+
+  function el(tag, props, children) {
+    const node = document.createElement(tag);
+    if (props) {
+      for (const [k, v] of Object.entries(props)) {
+        if (k === "text") node.textContent = v;
+        else if (k === "class") node.className = v;
+        else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+        else node.setAttribute(k, v);
+      }
+    }
+    (children || []).forEach(c => c && node.appendChild(typeof c === "string" ? document.createTextNode(c) : c));
+    return node;
   }
 
-  function renderChunk(chunk) {
-    clear(chunkEl);
-    var meta = chunk.metadata || {};
-    var panel = document.createElement("div");
-    panel.className = "panel";
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 
-    var cid = document.createElement("div");
-    cid.className = "cid";
-    cid.textContent = chunk.id;
-    panel.appendChild(cid);
+  // ---------- Navigation ----------
 
-    var line = document.createElement("div");
-    line.className = "meta";
-    line.textContent =
-      "Chapter " + meta.chapter_num + " — " + meta.chapter +
-      " · Section " + meta.section + " · " + meta.source;
-    panel.appendChild(line);
-
-    var body = document.createElement("div");
-    body.className = "body";
-    body.textContent = chunk.text;
-    panel.appendChild(body);
-
-    chunkEl.appendChild(panel);
-    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  function show(screen) {
+    state.screen = screen;
+    $$("[data-screen]").forEach(s => { s.hidden = Number(s.dataset.screen) !== screen; });
+    const inWizard = screen >= 1 && screen <= STEP_COUNT;
+    $("#stepper").hidden = !inWizard;
+    if (inWizard) state.furthest = Math.max(state.furthest, screen);
+    $$("#stepper button").forEach(b => {
+      const n = Number(b.dataset.goto);
+      if (n === screen) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
+      b.classList.toggle("done", n < state.furthest || (n <= state.furthest && n !== screen));
+    });
+    if (screen === SCREEN.review) renderReview();
+    const first = $(`[data-screen="${screen}"] input, [data-screen="${screen}"] select, [data-screen="${screen}"] textarea`);
+    if (first && inWizard && screen !== SCREEN.review) first.focus({ preventScroll: true });
+    window.scrollTo({ top: 0 });
   }
 
-  function loadChunk(chunkId) {
-    clear(errorEl);
-    fetch("/api/chunks/" + encodeURIComponent(chunkId))
-      .then(function (res) {
-        if (!res.ok) {
-          return res.text().then(function (t) {
-            throw new Error("Chunk " + chunkId + " — HTTP " + res.status + ": " + t);
-          });
-        }
-        return res.json();
-      })
-      .then(renderChunk)
-      .catch(function (e) { showError(e.message); });
+  function next() {
+    if (!validateStep(state.screen)) return;
+    show(state.screen + 1);
   }
 
-  function renderBlocks(blocks) {
-    clear(resultsEl);
-    if (!blocks || !blocks.length) {
-      var none = document.createElement("p");
-      none.className = "empty";
-      none.textContent = "The model returned no blocks.";
-      resultsEl.appendChild(none);
+  function back() {
+    show(Math.max(SCREEN.welcome, state.screen - 1));
+  }
+
+  // ---------- Field access ----------
+
+  function fields(step) {
+    const root = step == null ? document : $(`[data-screen="${step}"]`);
+    return $$("[data-field]", root);
+  }
+
+  function fieldEl(name) { return $(`[data-field="${CSS.escape(name)}"]`); }
+
+  function stepOf(name) {
+    const node = fieldEl(name);
+    if (node) return Number(node.closest("[data-screen]").dataset.screen);
+    return SECTION_STEP[name.split(".")[0]] || 1;
+  }
+
+  function readValue(node) {
+    const raw = node.value.trim();
+    if (raw === "") return undefined;
+    if (node.dataset.type === "int") return Number(raw);
+    if (node.dataset.type === "bool") return raw === "true";
+    return raw;
+  }
+
+  function buildPayload() {
+    const payload = { content: {}, learners: {}, pedagogy: {}, technology: {} };
+    fields().forEach(node => {
+      const value = readValue(node);
+      if (value === undefined) return;
+      const parts = node.dataset.field.split(".");
+      if (parts.length === 1) payload[parts[0]] = value;
+      else payload[parts[0]][parts[1]] = value;
+    });
+    return payload;
+  }
+
+  // ---------- Validation (mirrors api.py / validation.py) ----------
+
+  function setFieldError(name, message) {
+    const node = fieldEl(name);
+    const box = document.getElementById("e-" + name);
+    if (node) {
+      if (message) {
+        node.setAttribute("aria-invalid", "true");
+        node.setAttribute("aria-describedby", "e-" + name);
+      } else {
+        node.removeAttribute("aria-invalid");
+      }
+    }
+    if (box) box.textContent = message || "";
+  }
+
+  function clearFieldErrors(step) {
+    fields(step).forEach(node => setFieldError(node.dataset.field, ""));
+    $$("#stepper button").forEach(b => b.classList.remove("has-error"));
+  }
+
+  function checkField(node) {
+    const raw = node.value.trim();
+    if (node.required && raw === "") return "This field is required.";
+    if (raw === "") return "";
+    if (node.dataset.type === "int") {
+      const n = Number(raw);
+      if (!Number.isInteger(n)) return "Enter a whole number.";
+      if (node.min !== "" && n < Number(node.min)) return `Must be at least ${node.min}.`;
+      if (node.max !== "" && n > Number(node.max)) return `Must be at most ${node.max}.`;
+    }
+    if (node.minLength > 0 && raw.length < node.minLength) return `Enter at least ${node.minLength} characters.`;
+    if (node.maxLength > 0 && raw.length > node.maxLength) return `Keep this under ${node.maxLength} characters.`;
+    return "";
+  }
+
+  function crossFieldErrors() {
+    const v = name => fieldEl(name).value;
+    const errors = [];
+    const infra = v("technology.infrastructure");
+    const devices = v("technology.student_devices");
+    if ((infra === "1to1" || infra === "lab") && devices === "none") {
+      errors.push(["technology.student_devices", "This setup needs student devices, but none is selected."]);
+    }
+    if (infra === "projector" && v("technology.projector_available") === "false" && v("technology.smart_board_available") === "false") {
+      errors.push(["technology.projector_available", "A projector / smart board setup was chosen, but neither is available."]);
+    }
+    return errors;
+  }
+
+  function validateStep(step) {
+    clearFieldErrors(step);
+    let firstBad = null;
+    fields(step).forEach(node => {
+      const msg = checkField(node);
+      if (msg) {
+        setFieldError(node.dataset.field, msg);
+        firstBad = firstBad || node;
+      }
+    });
+    if (step === 3) {
+      crossFieldErrors().forEach(([name, msg]) => {
+        setFieldError(name, msg);
+        firstBad = firstBad || fieldEl(name);
+      });
+    }
+    if (firstBad) firstBad.focus();
+    return !firstBad;
+  }
+
+  // ---------- Review ----------
+
+  function displayValue(node) {
+    if (node.value.trim() === "") return "Not specified";
+    if (node.tagName === "SELECT") return node.options[node.selectedIndex].textContent;
+    return node.value.trim();
+  }
+
+  function renderReview() {
+    const root = $("#review");
+    clear(root);
+    [1, 2, 3].forEach(step => {
+      const dl = el("dl", { class: "summary" });
+      fields(step).forEach(node => {
+        const label = $(`label[for="${node.id}"]`);
+        const name = label ? label.firstChild.textContent.trim() : node.dataset.field;
+        dl.appendChild(el("dt", { text: name }));
+        dl.appendChild(el("dd", { text: displayValue(node) }));
+      });
+      root.appendChild(el("div", { class: "review-section" }, [
+        el("header", null, [
+          el("h3", { text: `${step}. ${STEP_TITLES[step]}` }),
+          el("button", { type: "button", class: "link-btn", text: "Edit", onclick: () => show(step) }),
+        ]),
+        dl,
+      ]));
+    });
+  }
+
+  // ---------- Errors ----------
+
+  function showError(err) {
+    const box = $("#error");
+    clear(box);
+    const children = [el("h2", { text: err.title || "Something went wrong" }), el("p", { text: err.message })];
+    if (err.details && err.details.length) {
+      children.push(el("ul", null, err.details.map(d => el("li", { text: d }))));
+    }
+    if (err.traceId) {
+      children.push(el("p", { class: "trace" }, ["Reference: ", el("span", { class: "mono", text: err.traceId }), " (quote this if you report the problem)"]));
+    }
+    if (err.retry) {
+      children.push(el("button", { type: "button", class: "secondary-btn", text: "Try again", onclick: err.retry }));
+    }
+    box.appendChild(el("div", { class: "err", role: "alert" }, children));
+    box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function clearError() { clear($("#error")); }
+
+  async function readError(res) {
+    let body = null;
+    try { body = await res.json(); } catch (_) { /* not JSON */ }
+    const e = (body && body.error) || {};
+    return {
+      status: res.status,
+      code: e.code || "http_error",
+      message: e.message || `The server responded with HTTP ${res.status}.`,
+      details: Array.isArray(e.details) ? e.details : [],
+      traceId: e.trace_id || res.headers.get("X-Trace-Id"),
+    };
+  }
+
+  // Put server-side field errors back on the wizard and jump to the first bad step.
+  function applyServerFieldErrors(error) {
+    const steps = new Set();
+    const unplaced = [];
+    error.details.forEach(d => {
+      if (d.field && fieldEl(d.field)) {
+        setFieldError(d.field, d.message);
+        steps.add(stepOf(d.field));
+      } else if (d.field && SECTION_STEP[d.field.split(".")[0]]) {
+        steps.add(SECTION_STEP[d.field.split(".")[0]]);
+        unplaced.push(`${d.field}: ${d.message}`);
+      } else {
+        unplaced.push(d.field ? `${d.field}: ${d.message}` : d.message);
+      }
+    });
+    if (!steps.size) return false;
+    const first = Math.min(...steps);
+    show(first);
+    steps.forEach(s => {
+      const b = $(`#stepper button[data-goto="${s}"]`);
+      if (b) b.classList.add("has-error");
+    });
+    showError({ title: "Please check your lesson details", message: error.message, details: unplaced, traceId: error.traceId });
+    const bad = $(`[data-screen="${first}"] [aria-invalid="true"]`);
+    if (bad) bad.focus();
+    return true;
+  }
+
+  // ---------- Generate ----------
+
+  async function generate() {
+    for (let s = 1; s <= 3; s++) {
+      if (!validateStep(s)) { show(s); validateStep(s); return; }
+    }
+    clearError();
+    clearFieldErrors();
+    const payload = buildPayload();
+    state.lastPayload = payload;
+    show(SCREEN.loading);
+
+    let res;
+    try {
+      res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) {
+      show(SCREEN.review);
+      showError({ title: "Could not reach the server", message: "Check that the server is running and try again.", retry: generate });
       return;
     }
-    blocks.forEach(function (block) {
-      var card = document.createElement("div");
-      card.className = "card";
 
-      var h2 = document.createElement("h2");
-      h2.textContent = block.title || "(untitled block)";
-      card.appendChild(h2);
-
-      var p = document.createElement("p");
-      p.textContent = block.content || "";
-      card.appendChild(p);
-
-      var chips = document.createElement("div");
-      chips.className = "chips";
-      (block.cited_chunk_ids || []).forEach(function (id) {
-        var chip = document.createElement("button");
-        chip.className = "chip";
-        chip.type = "button";
-        chip.textContent = id;
-        chip.addEventListener("click", function () { loadChunk(id); });
-        chips.appendChild(chip);
+    if (!res.ok) {
+      const error = await readError(res);
+      if (error.status === 422 && applyServerFieldErrors(error)) return;
+      show(SCREEN.review);
+      showError({
+        title: error.status >= 500 ? "The lesson could not be generated" : "Please check your lesson details",
+        message: error.message,
+        details: error.details.map(d => d.message),
+        traceId: error.traceId,
+        retry: error.status >= 500 ? generate : null,
       });
-      card.appendChild(chips);
+      return;
+    }
 
-      resultsEl.appendChild(card);
-    });
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      show(SCREEN.review);
+      showError({ title: "Unreadable response", message: "The server's response could not be read.", traceId: res.headers.get("X-Trace-Id"), retry: generate });
+      return;
+    }
+    state.traceId = data.trace_id || res.headers.get("X-Trace-Id");
+    renderResult(data);
+    show(SCREEN.result);
   }
 
-  function renderGaps(gaps) {
-    clear(gapsEl);
-    if (!gaps || !gaps.length) return;
-    var box = document.createElement("div");
-    box.className = "warn";
-    var h2 = document.createElement("h2");
-    h2.textContent = "Coverage gaps — not found in the retrieved passages";
-    box.appendChild(h2);
-    var ul = document.createElement("ul");
-    gaps.forEach(function (gap) {
-      var li = document.createElement("li");
-      li.textContent = typeof gap === "string" ? gap : JSON.stringify(gap);
-      ul.appendChild(li);
-    });
-    box.appendChild(ul);
-    gapsEl.appendChild(box);
+  // ---------- Result ----------
+  // Everything below renders model/server text with textContent (via el()).
+
+  const TABS = ["plan", "handouts", "quiz"];
+
+  function listCard(title, items, cls) {
+    return el("div", { class: cls || "card" }, [
+      el("h2", { text: title }),
+      el("ul", null, items.map(i => el("li", { text: typeof i === "string" ? i : JSON.stringify(i) }))),
+    ]);
   }
 
-  function generate() {
-    var topic = topicEl.value.trim();
-    clear(errorEl);
-    if (!topic) { showError("Enter a topic first."); return; }
+  function sec(title, content) {
+    return el("div", { class: "phase-sec" }, [el("h3", { text: title }), content]);
+  }
 
-    goEl.disabled = true;
-    goEl.textContent = "Generating...";
-    clear(gapsEl);
-    clear(chunkEl);
-    clear(resultsEl);
+  function ul(items, cls) { return el("ul", cls ? { class: cls } : null, items.map(t => el("li", { text: t }))); }
+  function ol(items) { return el("ol", null, items.map(t => el("li", { text: t }))); }
+  const LETTER = i => String.fromCharCode(65 + i);
 
-    fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        topic: topic,
-        duration: Number(durationEl.value) || 45
-      })
-    })
-      .then(function (res) {
-        if (!res.ok) {
-          return res.text().then(function (t) {
-            throw new Error("HTTP " + res.status + ": " + t);
-          });
-        }
+  // "g7_ch01_s11.2_003" -> "11.2"
+  function sectionOf(id) {
+    const m = /_s(\d+(?:\.\d+)?)_\d+$/.exec(id);
+    return m ? m[1] : null;
+  }
+
+  // One chip per textbook section; a section can have several passages.
+  function groupBySection(ids) {
+    const groups = new Map();
+    (ids || []).forEach(id => {
+      const s = sectionOf(id) || "?";
+      if (!groups.has(s)) groups.set(s, []);
+      groups.get(s).push(id);
+    });
+    return groups;
+  }
+
+  function sourcesRow(ids) {
+    const groups = groupBySection(ids);
+    if (!groups.size) return null;
+    const passages = el("div", { class: "passages", "aria-live": "polite" });
+    const chips = [];
+    groups.forEach((sectionIds, section) => {
+      chips.push(el("button", {
+        type: "button", class: "chip", text: "Textbook §" + section,
+        "aria-expanded": "false", title: "Show the textbook passage",
+        onclick: e => togglePassages(e.currentTarget, sectionIds, passages),
+      }));
+    });
+    return el("div", null, [el("div", { class: "sources" }, ["Based on:", ...chips]), passages]);
+  }
+
+  async function togglePassages(chip, ids, target) {
+    const open = chip.getAttribute("aria-expanded") === "true";
+    chip.parentNode.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-expanded", "false"));
+    clear(target);
+    if (open) return;
+    chip.setAttribute("aria-expanded", "true");
+    target.appendChild(el("p", { class: "hint-small", text: "Loading passage…" }));
+    try {
+      const results = await Promise.all(ids.map(async id => {
+        const res = await fetch("/api/chunks/" + encodeURIComponent(id), {
+          headers: state.traceId ? { "X-Trace-Id": state.traceId } : {},
+        });
+        if (!res.ok) throw await readError(res);
         return res.json();
-      })
-      .then(function (data) {
-        renderGaps(data.coverage_gaps);
-        renderBlocks(data.blocks);
-      })
-      .catch(function (e) { showError(e.message); })
-      .finally(function () {
-        goEl.disabled = false;
-        goEl.textContent = "Generate";
+      }));
+      clear(target);
+      results.forEach(chunk => {
+        const meta = chunk.metadata || {};
+        target.appendChild(el("div", { class: "panel" }, [
+          el("div", { class: "meta", text: `${meta.source || "NCERT Science Class 7"} · Chapter ${meta.chapter_num || "?"}, ${meta.chapter || ""} · Section ${meta.section || "?"}` }),
+          el("div", { class: "body", text: chunk.text || "" }),
+        ]));
       });
+    } catch (err) {
+      clear(target);
+      const msg = err && err.message ? err.message : "Check that the server is running.";
+      target.appendChild(el("p", { class: "inline-err", text: "Could not load the passage. " + msg }));
+    }
   }
 
-  goEl.addEventListener("click", generate);
-  topicEl.addEventListener("keydown", function (e) {
-    if (e.key === "Enter") generate();
+  function checklist(items) {
+    return el("ul", { class: "checklist" }, items.map(t =>
+      el("li", null, [el("label", null, [el("input", { type: "checkbox" }), el("span", { text: t })])])
+    ));
+  }
+
+  function renderResult(data) {
+    state.result = data;
+    document.body.classList.add("has-pack");
+    state.materials = null;
+    state.materialsError = null;
+    state.quizAnswers = {};
+    renderPlan();
+    selectTab("plan");
+    loadMaterials();
+  }
+
+  // ----- Plan tab -----
+
+  function renderPlan() {
+    const root = $("#panel-plan");
+    clear(root);
+    const data = state.result;
+    const lesson = data.lesson;
+    const o = lesson.overview;
+    const topic = (state.lastPayload && state.lastPayload.content.topic) || "";
+
+    if (data.warnings && data.warnings.length) root.appendChild(listCard("Please check", data.warnings, "warn"));
+
+    root.appendChild(el("div", { class: "card overview" }, [
+      el("h2", { text: o.title }),
+      el("p", { class: "meta", text: `${o.duration_min} minutes · Class 7 · ${topic}` }),
+      sec("By the end of the lesson", ul(o.objectives)),
+      el("div", { class: "two-col" }, [
+        o.materials.length ? sec("Materials", checklist(o.materials)) : null,
+        o.prep_before_class.length ? sec("Before class", checklist(o.prep_before_class)) : null,
+      ]),
+      el("ol", { class: "timeline", "aria-label": "Lesson timeline" },
+        lesson.phases.map(p => el("li", { class: "badge", text: `${p.name} · ${p.minutes} min` }))),
+    ]));
+
+    lesson.phases.forEach(p => root.appendChild(renderPhase(p)));
+
+    if (lesson.missing_details && lesson.missing_details.length) root.appendChild(renderMissingDetails(lesson.missing_details));
+    root.appendChild(renderPlanningNotes(data));
+
+    if (lesson.not_covered && lesson.not_covered.length) {
+      root.appendChild(el("details", { class: "card" }, [
+        el("summary", { text: `Not in your textbook (${lesson.not_covered.length})` }),
+        el("p", { class: "hint-small", text: "The textbook passages used for this plan don't cover these. Check another source before teaching them." }),
+        ul(lesson.not_covered),
+      ]));
+    }
+  }
+
+  function renderPhase(p) {
+    return el("article", { class: "card phase" }, [
+      el("header", { class: "phase-head" }, [el("h2", { text: p.name }), el("span", { class: "badge", text: `${p.minutes} min` })]),
+      sec("You do", ol(p.teacher_steps)),
+      p.student_actions.length ? sec("Students do", ul(p.student_actions)) : null,
+      p.board_notes ? sec("Write on the board", el("div", { class: "board", text: p.board_notes })) : null,
+      p.questions.length ? sec("Ask", el("ol", null, p.questions.map(q => el("li", null, [
+        el("div", { text: q.q }),
+        el("div", { class: "expected", text: "Expected answer: " + q.expected_answer }),
+      ])))) : null,
+      p.misconceptions.length ? sec("Watch for", ul(p.misconceptions)) : null,
+      p.if_tech_missing ? el("div", { class: "fallback" }, [el("strong", { text: "If the technology isn't working: " }), p.if_tech_missing]) : null,
+      sourcesRow(p.sources),
+    ]);
+  }
+
+  // Each missing detail becomes a question with the matching wizard control.
+  function renderMissingDetails(details) {
+    const card = el("div", { class: "card" }, [
+      el("h2", { text: "Improve this plan" }),
+      el("p", { class: "hint-small", text: "Answering one of these lets the agents plan more precisely. Regenerating runs all the agents again, which takes about a minute." }),
+    ]);
+    details.forEach(d => {
+      const source = d.field ? fieldEl(d.field) : null;
+      const control = source ? controlLike(source) : el("input", { type: "text", maxlength: "150", "aria-label": d.question });
+      const error = el("div", { class: "field-error", role: "alert" });
+      const button = el("button", {
+        type: "button", class: "secondary-btn small", text: "Regenerate with this",
+        onclick: () => regenerateWith(d, source, control, error),
+      });
+      card.appendChild(el("div", { class: "missing-row" }, [el("div", { class: "q", text: d.question }), control, button, error]));
+    });
+    return card;
+  }
+
+  function controlLike(source) {
+    let control;
+    if (source.tagName === "SELECT") {
+      control = source.cloneNode(true);
+      ["id", "data-field", "data-type", "required", "aria-invalid", "aria-describedby"].forEach(a => control.removeAttribute(a));
+      control.value = "";
+    } else {
+      control = el("input", { type: source.type || "text" });
+      ["min", "max", "maxlength"].forEach(a => { if (source.getAttribute(a)) control.setAttribute(a, source.getAttribute(a)); });
+    }
+    control.setAttribute("aria-label", source.labels && source.labels[0] ? source.labels[0].textContent : "Answer");
+    return control;
+  }
+
+  function regenerateWith(detail, source, control, error) {
+    const value = control.value.trim();
+    error.textContent = "";
+    if (!value) { error.textContent = "Please answer the question first."; control.focus(); return; }
+    if (source) {
+      source.value = value;
+      const msg = checkField(source);
+      if (msg) { error.textContent = msg; control.focus(); return; }
+    } else {
+      // No matching wizard field: add the answer to "Anything else".
+      const other = fieldEl("other_requests");
+      const addition = `${detail.question} ${value}`;
+      const combined = other.value.trim() ? `${other.value.trim()}\n${addition}` : addition;
+      if (combined.length > Number(other.maxLength)) {
+        error.textContent = "That's too long to add. Edit your inputs instead.";
+        return;
+      }
+      other.value = combined;
+    }
+    generate();
+  }
+
+  function renderPlanningNotes(data) {
+    const notes = data.notes || {};
+    const body = [el("summary", { text: "Planning notes" })];
+    if (notes.approach_summary) body.push(sec("Teaching approach", el("p", { text: notes.approach_summary })));
+    if (notes.tk_tool_status && notes.tk_tool_status.length) {
+      body.push(sec("Your tools", el("ul", null, notes.tk_tool_status.map(t => el("li", null, [
+        el("strong", { text: t.tool || "?" }), ": ",
+        el("span", { class: "status-" + (t.status || ""), text: (t.status || "unknown").replace(/_/g, " ") }),
+        t.reason ? ` — ${t.reason}` : "",
+      ])))));
+    }
+    if (notes.pk_feasibility && notes.pk_feasibility.length) {
+      body.push(sec("Changes to your preferences", ul(notes.pk_feasibility.map(f =>
+        typeof f === "string" ? f : `${f.requested}: ${f.issue} → ${f.alternative}`
+      ))));
+    }
+    if (notes.removed_references) {
+      const n = notes.removed_references;
+      body.push(el("p", { class: "hint-small", text: `${n} textbook reference${n === 1 ? " was" : "s were"} removed because ${n === 1 ? "it" : "they"} didn't match the passages used.` }));
+    }
+    const seq = data.agent_sequence || [];
+    body.push(el("div", { class: "phase-sec sequence" }, [
+      el("h3", { text: "How this plan was made" }),
+      el("ol", null, seq.map(s => el("li", { text: `${s.agent.toUpperCase()} agent — ${(s.ms / 1000).toFixed(1)}s` }))),
+      el("div", null, ["Reference: ", el("span", { class: "mono", text: state.traceId || "-" })]),
+    ]));
+    return el("details", { class: "card" }, body);
+  }
+
+  // ----- Handouts and quiz (second stage) -----
+
+  async function loadMaterials() {
+    const token = (state.materialsToken = (state.materialsToken || 0) + 1);
+    state.materials = null;
+    state.materialsError = null;
+    renderMaterials();
+
+    const { missing_details, ...plan } = state.result.lesson;
+    let error = null;
+    let materials = null;
+    try {
+      const res = await fetch("/api/materials", {
+        method: "POST",
+        headers: Object.assign({ "Content-Type": "application/json" }, state.traceId ? { "X-Trace-Id": state.traceId } : {}),
+        body: JSON.stringify({ request: state.lastPayload, plan }),
+      });
+      if (res.ok) materials = (await res.json()).materials;
+      else error = await readError(res);
+    } catch (e) {
+      error = { message: "Could not reach the server. Check that it is running." };
+    }
+    if (token !== state.materialsToken) return; // a newer lesson replaced this one
+    state.materials = materials;
+    state.materialsError = error;
+    state.quizAnswers = {};
+    renderMaterials();
+  }
+
+  function setTabStatus(name, text) {
+    $(`#tab-${name} .tab-status`).textContent = text;
+  }
+
+  function renderMaterials() {
+    const loading = !state.materials && !state.materialsError;
+    ["handouts", "quiz"].forEach(name => {
+      const root = $(`#panel-${name}`);
+      clear(root);
+      setTabStatus(name, loading ? "…" : state.materialsError ? "!" : "");
+      if (loading) {
+        root.appendChild(el("div", { class: "card inline-loading" }, [
+          el("div", { class: "spinner", "aria-hidden": "true" }),
+          el("span", { text: "Writing the handouts and exit-ticket quiz… Your plan is ready in the Plan tab." }),
+        ]));
+      } else if (state.materialsError) {
+        const e = state.materialsError;
+        root.appendChild(el("div", { class: "err", role: "alert" }, [
+          el("h2", { text: "The handouts and quiz couldn't be written" }),
+          el("p", { text: `${e.message} Your lesson plan is not affected.` }),
+          e.traceId ? el("p", { class: "trace" }, ["Reference: ", el("span", { class: "mono", text: e.traceId })]) : null,
+          el("button", { type: "button", class: "secondary-btn", text: "Retry", onclick: loadMaterials }),
+        ]));
+      } else if (name === "handouts") {
+        renderHandouts(root, state.materials.handouts);
+      } else {
+        renderQuiz(root, state.materials.exit_ticket);
+      }
+    });
+  }
+
+  function renderHandouts(root, handouts) {
+    root.appendChild(el("p", { class: "hint-small", text: "Each handout prints on its own page in the teacher pack." }));
+    handouts.forEach(h => {
+      root.appendChild(el("article", { class: "card handout" }, [
+        el("header", { class: "phase-head" }, [el("h2", { text: h.title }), el("span", { class: "badge", text: "For " + h.for_phase })]),
+        h.instructions ? el("p", { text: h.instructions }) : null,
+        el("ol", null, h.items.map(item => el("li", null, [el("span", { text: item }), el("div", { class: "answer-space", "aria-hidden": "true" })]))),
+      ]));
+    });
+  }
+
+  function renderQuiz(root, questions) {
+    const answered = Object.keys(state.quizAnswers).length;
+    const correct = Object.entries(state.quizAnswers).filter(([i, a]) => questions[i].answer === a).length;
+    root.appendChild(el("div", { class: "card" }, [
+      el("h2", { text: "Exit ticket" }),
+      el("p", { class: "hint-small", text: "Choose an answer to see if it's right and why. The printed pack has a student copy and a separate answer key." }),
+      el("p", { class: "quiz-score", text: answered ? `${correct} of ${answered} answered correctly (${questions.length} questions)` : `${questions.length} questions` }),
+      answered ? el("button", { type: "button", class: "secondary-btn small", text: "Start again", onclick: () => { state.quizAnswers = {}; renderMaterials(); } }) : null,
+    ]));
+
+    questions.forEach((q, i) => {
+      const chosen = state.quizAnswers[i];
+      const done = chosen !== undefined;
+      const options = el("div", { class: "options", role: "group", "aria-label": `Question ${i + 1} options` },
+        q.options.map((opt, j) => {
+          let cls = "option";
+          if (done && opt === q.answer) cls += " correct";
+          else if (done && opt === chosen) cls += " incorrect";
+          const button = el("button", {
+            type: "button", class: cls,
+            onclick: () => { state.quizAnswers[i] = opt; renderMaterials(); focusQuestion(i); },
+          }, [el("span", { class: "letter", text: LETTER(j) + "." }), opt]);
+          if (done) button.disabled = true;
+          return button;
+        }));
+      const feedback = done ? el("div", { class: "feedback", role: "status" }, [
+        chosen === q.answer
+          ? el("strong", { class: "ok", text: "Correct. " })
+          : el("strong", { class: "no", text: `Not quite. The answer is ${LETTER(q.options.indexOf(q.answer))}. ` }),
+        q.why,
+      ]) : null;
+      root.appendChild(el("article", { class: "card", id: `quiz-q-${i}` }, [
+        el("header", { class: "phase-head" }, [el("h3", { text: `Question ${i + 1}` }), el("span", { class: "badge", text: q.bloom })]),
+        el("p", { text: q.q }),
+        options,
+        feedback,
+      ]));
+    });
+  }
+
+  function focusQuestion(i) {
+    const card = document.getElementById(`quiz-q-${i}`);
+    const status = card && card.querySelector(".feedback");
+    if (status) { status.setAttribute("tabindex", "-1"); status.focus({ preventScroll: true }); }
+  }
+
+  // ----- Tabs -----
+
+  function selectTab(name, focus) {
+    TABS.forEach(t => {
+      const tab = $(`#tab-${t}`);
+      const active = t === name;
+      tab.setAttribute("aria-selected", String(active));
+      tab.tabIndex = active ? 0 : -1;
+      $(`#panel-${t}`).hidden = !active;
+      if (active && focus) tab.focus();
+    });
+  }
+
+  // ----- Teacher pack (print / Save as PDF) -----
+
+  function buildPrintPack() {
+    const root = $("#print-pack");
+    clear(root);
+    if (!state.result) return;
+    const lesson = state.result.lesson;
+    const o = lesson.overview;
+    const topic = (state.lastPayload && state.lastPayload.content.topic) || "";
+    const h = (tag, text, cls) => el(tag, cls ? { class: cls, text } : { text });
+
+    // 1. Lesson plan
+    const plan = el("section", { class: "page" }, [
+      h("h1", o.title),
+      h("p", `${o.duration_min} minutes · Class 7 · ${topic}`, "pp-meta"),
+      h("h3", "By the end of the lesson"), ul(o.objectives),
+      o.materials.length ? h("h3", "Materials") : null, o.materials.length ? ul(o.materials, "pp-check") : null,
+      o.prep_before_class.length ? h("h3", "Before class") : null, o.prep_before_class.length ? ul(o.prep_before_class, "pp-check") : null,
+      h("p", "Timeline: " + lesson.phases.map(p => `${p.name} ${p.minutes} min`).join(" → "), "pp-small"),
+    ]);
+    lesson.phases.forEach(p => {
+      const sections = groupBySection(p.sources);
+      plan.appendChild(el("div", null, [
+        h("h2", `${p.name} — ${p.minutes} min`),
+        h("h3", "You do"), ol(p.teacher_steps),
+        p.student_actions.length ? h("h3", "Students do") : null, p.student_actions.length ? ul(p.student_actions) : null,
+        p.board_notes ? h("h3", "Write on the board") : null, p.board_notes ? h("div", p.board_notes, "pp-board") : null,
+        p.questions.length ? h("h3", "Ask") : null,
+        p.questions.length ? el("ol", null, p.questions.map(q => el("li", null, [h("div", q.q), h("div", "Expected answer: " + q.expected_answer, "pp-small")]))) : null,
+        p.misconceptions.length ? h("h3", "Watch for") : null, p.misconceptions.length ? ul(p.misconceptions) : null,
+        p.if_tech_missing ? h("p", "If the technology isn't working: " + p.if_tech_missing, "pp-fallback") : null,
+        sections.size ? h("p", "Textbook: " + Array.from(sections.keys()).map(s => "§" + s).join(", "), "pp-small") : null,
+      ]));
+    });
+    if (lesson.not_covered.length) {
+      plan.appendChild(h("h2", "Not in your textbook"));
+      plan.appendChild(h("p", "The textbook passages used for this plan don't cover these. Check another source before teaching them.", "pp-small"));
+      plan.appendChild(ul(lesson.not_covered));
+    }
+    root.appendChild(plan);
+
+    if (!state.materials) {
+      root.appendChild(el("section", { class: "page" }, [
+        h("h1", "Handouts and exit ticket"),
+        h("p", state.materialsError
+          ? "The handouts and quiz couldn't be written. Use Retry in the Handouts tab, then download the pack again."
+          : "The handouts and quiz were still being written. Wait for them to appear in the Handouts tab, then download the pack again.", "pp-note"),
+      ]));
+      return;
+    }
+    const m = state.materials;
+    const nameLine = h("p", "Name: ______________________   Group: ________   Date: ____________", "pp-name");
+
+    // 2. Handouts, one per page
+    m.handouts.forEach(ho => {
+      root.appendChild(el("section", { class: "page" }, [
+        h("h1", ho.title),
+        nameLine.cloneNode(true),
+        ho.instructions ? h("p", ho.instructions) : null,
+        el("ol", null, ho.items.map(item => el("li", { class: "pp-q" }, [
+          h("div", item),
+          h("div", "", "pp-line"), h("div", "", "pp-line"), h("div", "", "pp-line"),
+        ]))),
+      ]));
+    });
+
+    // 3. Exit ticket, student copy (no answers)
+    root.appendChild(el("section", { class: "page" }, [
+      h("h1", "Exit ticket: " + o.title),
+      nameLine.cloneNode(true),
+      h("p", "Circle the best answer."),
+      el("ol", null, m.exit_ticket.map(q => el("li", { class: "pp-q" }, [
+        h("div", q.q),
+        el("div", null, q.options.map((opt, j) => h("div", `○ ${LETTER(j)}. ${opt}`))),
+      ]))),
+    ]));
+
+    // 4. Teacher copy: answer key on its own page
+    root.appendChild(el("section", { class: "page" }, [
+      h("h1", "Teacher copy — answer key"),
+      h("p", "Exit ticket: " + o.title, "pp-meta"),
+      el("ol", null, m.exit_ticket.map(q => el("li", { class: "pp-q" }, [
+        h("div", q.q),
+        el("div", null, [el("strong", { text: `Answer: ${LETTER(q.options.indexOf(q.answer))}. ${q.answer}` })]),
+        h("div", q.why),
+        h("div", "Bloom's level: " + q.bloom, "pp-small"),
+      ]))),
+    ]));
+  }
+
+  function downloadPack() {
+    buildPrintPack();
+    const previous = document.title;
+    const title = state.result ? state.result.lesson.overview.title : "Lesson";
+    // Browsers use the page title as the default PDF file name.
+    document.title = `${title} - teacher pack`;
+    const restore = () => { document.title = previous; window.removeEventListener("afterprint", restore); };
+    window.addEventListener("afterprint", restore);
+    window.print();
+  }
+
+  // ---------- Wiring ----------
+
+  $("#start").addEventListener("click", () => show(1));
+  $$("[data-next]").forEach(b => b.addEventListener("click", next));
+  $$("[data-back]").forEach(b => b.addEventListener("click", back));
+  $("#generate").addEventListener("click", generate);
+  $("#edit-inputs").addEventListener("click", () => show(SCREEN.review));
+  $("#new-lesson").addEventListener("click", () => {
+    $("#wizard").reset();
+    clearError();
+    clearFieldErrors();
+    state.furthest = 0;
+    state.traceId = null;
+    state.result = null;
+    state.materials = null;
+    state.materialsError = null;
+    state.materialsToken = (state.materialsToken || 0) + 1; // ignore any in-flight materials call
+    clear($("#print-pack"));
+    document.body.classList.remove("has-pack");
+    show(1);
   });
+
+  $("#download").addEventListener("click", downloadPack);
+  TABS.forEach((name, i) => {
+    const tab = $(`#tab-${name}`);
+    tab.addEventListener("click", () => selectTab(name));
+    tab.addEventListener("keydown", e => {
+      const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (!step) return;
+      e.preventDefault();
+      selectTab(TABS[(i + step + TABS.length) % TABS.length], true);
+    });
+  });
+  // Ctrl+P should also print the pack, not the screen.
+  window.addEventListener("beforeprint", buildPrintPack);
+  $$("#stepper button").forEach(b => b.addEventListener("click", () => {
+    const n = Number(b.dataset.goto);
+    if (n <= state.furthest && n !== state.screen) show(n);
+  }));
+
+  // Clear a field's error as soon as it is edited.
+  fields().forEach(node => node.addEventListener("input", () => setFieldError(node.dataset.field, "")));
+
+  // Enter moves forward a step instead of submitting (textareas keep newlines).
+  $("#wizard").addEventListener("keydown", e => {
+    if (e.key !== "Enter" || e.target.tagName === "TEXTAREA" || e.target.tagName === "BUTTON") return;
+    e.preventDefault();
+    if (state.screen === SCREEN.review) generate(); else next();
+  });
+  $("#wizard").addEventListener("submit", e => e.preventDefault());
+
+  show(SCREEN.welcome);
+})();
 </script>
 </body>
 </html>
