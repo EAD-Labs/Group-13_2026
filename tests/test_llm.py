@@ -105,3 +105,13 @@ def test_bad_request_is_not_retried(scripted):
     with pytest.raises(LLMError):
         llm.call_agent("p")
     assert calls == ["primary"]
+
+
+def test_each_call_logs_its_duration_and_tokens(scripted, events):
+    scripted([_ok()])
+    llm.call_agent("p", actor="agent:ck")
+    [response] = [e for e in events if e["event"] == "llm.response"]
+    assert response["actor"] == "agent:ck"
+    assert response["model"] == "primary"
+    assert response["prompt_tokens"] == 3 and response["completion_tokens"] == 2
+    assert isinstance(response["duration_ms"], int)

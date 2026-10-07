@@ -15,8 +15,27 @@ CHUNK_OVERLAP = 150
 # chapter number printed in an older book will not match a current print run.
 # The number recorded here becomes part of every chunk id and of the
 # `chapter_num` metadata filter, so a wrong number silently breaks retrieval.
+# Numbers and names below match the 2018-19 print (data/raw/). The names must
+# match the chapter title pages exactly: prepare_textbook.py splits on them.
 CHAPTERS = {
     "chapter01.txt": {"num": 1, "name": "Nutrition in Plants"},
+    "chapter02.txt": {"num": 2, "name": "Nutrition in Animals"},
+    "chapter03.txt": {"num": 3, "name": "Fibre to Fabric"},
+    "chapter04.txt": {"num": 4, "name": "Heat"},
+    "chapter05.txt": {"num": 5, "name": "Acids, Bases and Salts"},
+    "chapter06.txt": {"num": 6, "name": "Physical and Chemical Changes"},
+    "chapter07.txt": {"num": 7, "name": "Weather, Climate and Adaptations of Animals to Climate"},
+    "chapter08.txt": {"num": 8, "name": "Winds, Storms and Cyclones"},
+    "chapter09.txt": {"num": 9, "name": "Soil"},
+    "chapter10.txt": {"num": 10, "name": "Respiration in Organisms"},
+    "chapter11.txt": {"num": 11, "name": "Transportation in Animals and Plants"},
+    "chapter12.txt": {"num": 12, "name": "Reproduction in Plants"},
+    "chapter13.txt": {"num": 13, "name": "Motion and Time"},
+    "chapter14.txt": {"num": 14, "name": "Electric Current and its Effects"},
+    "chapter15.txt": {"num": 15, "name": "Light"},
+    "chapter16.txt": {"num": 16, "name": "Water: A Precious Resource"},
+    "chapter17.txt": {"num": 17, "name": "Forests: Our Lifeline"},
+    "chapter18.txt": {"num": 18, "name": "Wastewater Story"},
 }
 
 # --- Logging -----------------------------------------------------------------
@@ -28,6 +47,14 @@ LOG_BACKUP_COUNT = 5
 # When True, full prompts and raw model responses are written to the log.
 # Off by default: they are large and may contain teacher-entered text.
 LOG_FULL_PAYLOADS = False
+# One readable file per session (trace) under LOG_DIR/LOG_SESSION_DIR, showing
+# which agent ran when, for how long, and what each one received, returned
+# and handed on. LOG_SESSION_PAYLOADS includes those contents (they can echo
+# teacher-entered text); the oldest files are deleted beyond the maximum.
+LOG_SESSION_FILES = True
+LOG_SESSION_DIR = "sessions"
+LOG_SESSION_PAYLOADS = True
+LOG_SESSION_MAX_FILES = 500
 
 # --- LLM -----------------------------------------------------------------------
 
@@ -48,6 +75,10 @@ LLM_RETRY_BACKOFF_S = (2, 6, 12)
 # Short single-word topics score higher, so err towards letting them through;
 # the CK agent still reports coverage gaps. "acids and bases" (0.67) passes,
 # so this is a coarse filter, not a guarantee.
+# Re-checked on the full 18-chapter book (2026-10-01), filtered by chapter:
+# on-topic 0.25 (polar bears, ch7) to 0.73 (stomata, ch1); off-topic 0.81
+# (photosynthesis in ch14) and 0.89 (black holes in ch1), but "algebra" in
+# ch13 (0.78, graphs) still passes.
 RELEVANCE_MAX_DISTANCE = 0.80
 RETRIEVAL_K = 4
 

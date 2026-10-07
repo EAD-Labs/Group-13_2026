@@ -117,9 +117,17 @@ def call_agent(prompt: str, actor: str = "llm"):
     Returns (parsed_dict, usage) where usage is {"model", "prompt_tokens",
     "completion_tokens"} (token counts only if the endpoint reported them).
     """
+    started = time.perf_counter()
     response, model = _complete(prompt, actor)
+    duration_ms = round((time.perf_counter() - started) * 1000)
 
     raw = response.choices[0].message.content or ""
+    usage = {"model": model}
+    if getattr(response, "usage", None):
+        usage["prompt_tokens"] = response.usage.prompt_tokens
+        usage["completion_tokens"] = response.usage.completion_tokens
+    # Includes any retries and back-off waits inside _complete().
+    log_event("llm.response", actor, duration_ms=duration_ms, response_chars=len(raw), **usage)
     text = raw.strip()
 
     # Some models wrap JSON in a fenced block despite response_format.
@@ -130,7 +138,7 @@ def call_agent(prompt: str, actor: str = "llm"):
         text = text.strip()
 
     if config.LOG_FULL_PAYLOADS:
-        log_event("llm.raw_response", actor, level=logging.DEBUG, raw=raw)
+        log_event("llm.raw_response", actor, response_chars=len(raw), detail={"raw": raw})
 
     try:
         parsed = json.loads(text)
@@ -142,10 +150,6 @@ def call_agent(prompt: str, actor: str = "llm"):
         log_event("agent.error", actor, level=logging.ERROR, reason="not_an_object", raw_preview=raw[:500])
         raise AgentOutputError("The AI returned a response in the wrong format. Please try again.")
 
-    usage = {"model": model}
-    if getattr(response, "usage", None):
-        usage["prompt_tokens"] = response.usage.prompt_tokens
-        usage["completion_tokens"] = response.usage.completion_tokens
     return parsed, usage
 
 

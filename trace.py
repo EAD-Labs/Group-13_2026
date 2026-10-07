@@ -13,7 +13,12 @@ import sys
 import config
 
 # Fields already shown in the fixed columns, or too noisy for one line.
-_HIDDEN = {"ts", "level", "trace_id", "seq", "actor", "event", "duration_ms", "inputs", "prompt", "raw", "exception"}
+_HIDDEN = {
+    "ts", "level", "trace_id", "seq", "actor", "event", "duration_ms", "exception",
+    # Large payloads, present only when config.LOG_FULL_PAYLOADS is on;
+    # read them in the session file instead.
+    "inputs", "prompt", "raw", "payload", "output", "passages", "lesson", "materials",
+}
 
 
 def load_events():
@@ -49,6 +54,9 @@ def print_trace(trace_id, events):
             f"{k}={json.dumps(v, ensure_ascii=False)}" for k, v in e.items() if k not in _HIDDEN
         )
         print(f"  {e.get('seq', '?'):>3}  {e.get('actor', ''):<12} {e.get('event', ''):<22} {ms:>8}  {extra}")
+    session_files = glob.glob(os.path.join(config.LOG_DIR, config.LOG_SESSION_DIR, f"*_{trace_id}.log"))
+    if session_files:
+        print(f"  full agent inputs/outputs: {session_files[0]}")
 
 
 def main(argv):

@@ -49,9 +49,8 @@ then set `GEMINI_API_KEY` to a real key from Google AI Studio. `GEMINI_MODEL`
 defaults to `gemini-3.6-flash` (`gemini-2.0-flash` has been retired and now
 returns a 404).
 
-**4. Replace `data/chapter01.txt` with the real NCERT chapter text.** The file
-shipped here is clearly-marked placeholder text that exists only so the pipeline
-runs before real content is added. The required format is:
+**4. Prepare the chapter files.** `ingest.py` reads one file per chapter,
+`data/chapter01.txt` … `data/chapter18.txt`, in this format:
 
 ```
 ## 1.1 Section Title
@@ -64,9 +63,20 @@ Second paragraph.
 ```
 
 Two hashes, a space, the section number as `X.Y`, a space, then the title.
-Paragraphs must be separated by a **blank line**. Also check that the chapter
-numbers in `config.CHAPTERS` match your own PDF — NCERT renumbered chapters in
-the 2023 rationalisation.
+Paragraphs must be separated by a **blank line**. The files are generated from
+the raw PDF text of the whole NCERT Science Class 7 book (2018-19 print) in
+`data/raw/ncert_science_class7.txt`:
+
+```bash
+python prepare_textbook.py
+```
+
+It drops page headers/footers, figure captions and end-of-chapter exercises,
+splits the book on the chapter titles in `config.CHAPTERS`, and puts text that
+comes before a chapter's first numbered section under `## N.0 Introduction`.
+Edit the raw file (or the script), not the generated chapter files. The chapter
+numbers in `config.CHAPTERS` must match the print you use — NCERT renumbered
+chapters in the 2023 rationalisation.
 
 **5. Ingest:**
 
@@ -160,6 +170,18 @@ trace. The events cover the human request, validation, retrieval, each
 agent's start and end (with timings and token counts), and every
 `agent.handoff` between agents. Citation clicks from the page are logged
 under the trace that produced the lesson.
+
+Each session (one lesson: the plan, then its handouts/quiz and citation
+clicks, all under one trace id) also gets its own readable file,
+`logs/sessions/<YYYYMMDD-HHMMSS>_<trace_id>.log`. For every step it shows the
+time, the actor, how long it took, and the actual contents: the passages
+retrieval returned, each agent's inputs and JSON output, every hand-off
+(`agent:ck --> agent:tpack`) with its payload, each Gemini call's model,
+duration and token counts (`llm.response`), and a `pipeline.done` /
+`materials.done` summary of the agent order and timings. Set
+`LOG_SESSION_PAYLOADS = False` in `config.py` to keep only the event lines,
+or `LOG_SESSION_FILES = False` to turn the files off. The oldest files are
+deleted beyond `LOG_SESSION_MAX_FILES`.
 
 ```bash
 python trace.py --last        # the most recent request, step by step

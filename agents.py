@@ -90,6 +90,7 @@ def run_agent(spec, inputs, upstream=None):
             **{"from": f"agent:{source}", "to": spec.actor},
             payload_keys=sorted(output.keys()),
             payload_chars=len(payload),
+            detail={"payload": output},
         )
 
     fill = dict(inputs)
@@ -110,12 +111,15 @@ def run_agent(spec, inputs, upstream=None):
             f"The {spec.name.upper()} agent could not be prepared (prompt placeholder {e} has no value)."
         ) from e
 
+    detail = {"inputs": inputs}
+    if config.LOG_FULL_PAYLOADS:
+        detail["prompt"] = prompt
     log_event(
         "agent.start",
         spec.actor,
         prompt_chars=len(prompt),
         upstream=[f"agent:{s}" for s in upstream],
-        **({"prompt": prompt} if config.LOG_FULL_PAYLOADS else {}),
+        detail=detail,
     )
 
     started = time.perf_counter()
@@ -137,6 +141,7 @@ def run_agent(spec, inputs, upstream=None):
         duration_ms=ms,
         output_keys=sorted(output.keys()),
         **usage,
+        detail={"output": output},
     )
     return output, {"agent": spec.name, "ms": ms, "status": "ok"}
 

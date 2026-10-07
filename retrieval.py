@@ -75,6 +75,12 @@ def retrieve(query, chapter_num=None, k=config.RETRIEVAL_K):
         chapter_num=chapter_num,
         ids=[c["id"] for c in chunks],
         distances=[round(c["distance"], 4) for c in chunks],
+        detail={
+            "passages": [
+                {"id": c["id"], "distance": round(c["distance"], 4), "text": c["text"]}
+                for c in chunks
+            ]
+        },
     )
     return chunks
 

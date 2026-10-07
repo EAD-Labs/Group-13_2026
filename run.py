@@ -255,6 +255,9 @@ def run_pipeline(req):
     missing = list(pk.get("missing_inputs") or []) + list(tk.get("missing_inputs") or [])
     plan["missing_details"] = missing_details(missing, req)
 
+    _log_stage_done("pipeline.done", steps, {"lesson": plan},
+                    removed_references=removed_references, warnings=warnings)
+
     return {
         "trace_id": current_trace_id(),
         "lesson": plan,
@@ -295,11 +298,24 @@ def run_materials(req, plan):
     except ValidationError as e:
         log_event("agent.error", "agent:materials", reason="postprocess_invalid", error=str(e)[:1000])
         raise AgentOutputError("The handouts and quiz came back incomplete. Please try again.") from e
+    _log_stage_done("materials.done", [step], {"materials": materials})
     return {
         "trace_id": current_trace_id(),
         "materials": materials,
         "agent_sequence": [{"seq": 1, **step}],
     }
+
+
+def _log_stage_done(event, steps, result, **fields):
+    """Summarise a stage: which agents ran, in what order, and for how long."""
+    log_event(
+        event,
+        "api",
+        agent_sequence=[f"{s['agent']} ({s['ms'] / 1000:.2f}s)" for s in steps],
+        agents_total_ms=sum(s["ms"] for s in steps),
+        **fields,
+        detail=result,
+    )
 
 
 def missing_details(names, req):
