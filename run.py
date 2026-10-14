@@ -1,22 +1,25 @@
 """Multi-agent TPACK pipeline.
 
 Stage 1, POST /api/generate (run_pipeline):
-    validate -> retrieve -> CK -> PK -> TK -> TPACK integrator -> LessonPlan
+    validate -> retrieve -> CK -> PK -> TK -> PCK -> TCK -> TPK
+             -> TPACK integrator -> LessonPlan
 
 Stage 2, POST /api/materials (run_materials):
     validate -> retrieve -> materials agent (given the plan) -> LessonMaterials
 
 CK, PK and TK are foundational agents that never see each other's output.
-The TPACK integrator receives all three (logged as agent.handoff events) plus
-the retrieved chunks. Handouts and the exit ticket are a separate call so a
-failure there never loses the plan.
+The intersection agents each combine two of them (PCK: CK+PK, TCK: CK+TK,
+TPK: PK+TK), and the TPACK integrator receives all six. Every hand-off is
+logged as an agent.handoff event, and every trade-off an agent reports is
+logged as an agent.decision event. Handouts and the exit ticket are a
+separate call so a failure there never loses the plan.
 """
 
 import re
 
 from pydantic import ValidationError
 
-from agents import CK, MATERIALS, PK, TK, TPACK, run_agent
+from agents import CK, MATERIALS, PCK, PK, TCK, TK, TPACK, TPK, run_agent
 from errors import AgentOutputError
 from lesson_schema import LessonMaterials, LessonPlan
 from logging_setup import current_trace_id, log_event
@@ -212,6 +215,60 @@ def run_pipeline(req):
         },
     )
     steps.append(step)
+    _log_decisions(PK, [
+        {"decision": f.get("requested"), "chosen": f.get("alternative"), "because": f.get("issue")}
+        for f in pk.get("feasibility_notes") or [] if isinstance(f, dict)
+    ])
+    _log_decisions(TK, [
+        {"decision": f"use {t.get('tool')}", "chosen": t.get("status"), "because": t.get("reason")}
+        for t in tk.get("requested_tools_status") or []
+        if isinstance(t, dict) and t.get("status") != "available"
+    ])
+
+    pck, step = run_agent(
+        PCK,
+        {
+            "grade": content.grade,
+            "topic": content.topic,
+            "duration": content.duration,
+            "class_size": learners.class_size,
+            "prior_knowledge": PRIOR_KNOWLEDGE_LABELS[learners.prior_knowledge],
+            "preferred_approach": METHOD_LABELS[pedagogy.method],
+            "blooms_focus": BLOOMS_LABELS[pedagogy.blooms_focus],
+            "chunks": formatted_chunks,
+        },
+        upstream={"ck": ck, "pk": pk},
+    )
+    steps.append(step)
+    _log_decisions(PCK, pck.get("trade_offs"))
+
+    tck, step = run_agent(
+        TCK,
+        {
+            "grade": content.grade,
+            "chapter": chapter,
+            "topic": content.topic,
+            "chunks": formatted_chunks,
+        },
+        upstream={"ck": ck, "tk": tk},
+    )
+    steps.append(step)
+    _log_decisions(TCK, tck.get("trade_offs"))
+
+    tpk, step = run_agent(
+        TPK,
+        {
+            "grade": content.grade,
+            "duration": content.duration,
+            "preferred_approach": METHOD_LABELS[pedagogy.method],
+            "classroom": _classroom_summary(req),
+            "teacher_tech_comfort": _or_ns(tech.teacher_tech_comfort),
+            "accessibility_needs": _or_ns(learners.accessibility_needs),
+        },
+        upstream={"pk": pk, "tk": tk},
+    )
+    steps.append(step)
+    _log_decisions(TPK, tpk.get("trade_offs"))
 
     plan, step = run_agent(
         TPACK,
@@ -226,9 +283,10 @@ def run_pipeline(req):
             "tools": _or_ns(tech.tools),
             "chunks": formatted_chunks,
         },
-        upstream={"ck": ck, "pk": pk, "tk": tk},
+        upstream={"ck": ck, "pk": pk, "tk": tk, "pck": pck, "tck": tck, "tpk": tpk},
     )
     steps.append(step)
+    _log_decisions(TPACK, plan.get("design_decisions"))
 
     removed_references = _strip_invalid_citations(plan, retrieved_ids)
     _scrub_ids_from_text(plan)
@@ -239,7 +297,7 @@ def run_pipeline(req):
             f"The phases add up to {total} minutes, not the {content.duration} you asked for. Adjust the timings as needed."
         )
 
-    for gap in ck.get("coverage_gaps") or []:
+    for gap in list(ck.get("coverage_gaps") or []) + list(pck.get("content_gaps") or []):
         if isinstance(gap, str) and gap.strip() and gap not in plan["not_covered"]:
             plan["not_covered"].append(gap.strip()[:600])
     plan["not_covered"] = plan["not_covered"][:20]
@@ -265,6 +323,11 @@ def run_pipeline(req):
             "approach_summary": pk.get("approach_summary"),
             "pk_feasibility": pk.get("feasibility_notes") or [],
             "tk_tool_status": tk.get("requested_tools_status") or [],
+            "trade_offs": {
+                "pck": pck.get("trade_offs") or [],
+                "tck": tck.get("trade_offs") or [],
+                "tpk": tpk.get("trade_offs") or [],
+            },
             "removed_references": removed_references,
         },
         "warnings": warnings,
@@ -316,6 +379,32 @@ def _log_stage_done(event, steps, result, **fields):
         **fields,
         detail=result,
     )
+
+
+def _log_decisions(spec, items):
+    """Log each trade-off an agent reported as one agent.decision event.
+
+    The short fields go on the event itself so trace.py and the console show
+    the reasoning; the full item goes in `detail`.
+    """
+    for i, item in enumerate(items or [], 1):
+        if not isinstance(item, dict):
+            continue
+        fields = {
+            k: _short(item.get(k))
+            for k in ("decision", "chosen", "given_up", "rejected", "because")
+            if item.get(k)
+        }
+        if not fields:
+            continue
+        log_event("agent.decision", spec.actor, n=i, **fields, detail={"decision": item})
+
+
+def _short(value, limit=300):
+    if isinstance(value, list):
+        value = "; ".join(str(v) for v in value)
+    text = str(value)
+    return text if len(text) <= limit else text[: limit - 3] + "..."
 
 
 def missing_details(names, req):

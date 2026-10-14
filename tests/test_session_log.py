@@ -24,10 +24,11 @@ def test_generate_writes_one_session_file_with_agent_io(client, fake_backends):
     text = _read_session(r.headers["X-Trace-Id"])
 
     assert "POST /api/generate" in text
-    for agent in ("ck", "pk", "tk", "tpack"):
+    for agent in ("ck", "pk", "tk", "pck", "tck", "tpk", "tpack"):
         assert f"agent:{agent}" in text
-    for source in ("ck", "pk", "tk"):
+    for source in ("ck", "pk", "tk", "pck", "tck", "tpk"):
         assert f"agent:{source} --> agent:tpack" in text
+    assert "agent.decision" in text
     # The contents, not just the key names, are recorded.
     assert "| payload:" in text and "| output:" in text and "| inputs:" in text
     assert FAKE_OUTPUTS["agent:tpack"]["overview"]["title"] in text
@@ -66,5 +67,5 @@ def test_payloads_stay_out_of_the_jsonl_log_by_default(client, fake_backends):
     with open(os.path.join(config.LOG_DIR, config.LOG_FILE), encoding="utf-8") as f:
         entries = [json.loads(line) for line in f]
     ends = [e for e in entries if e.get("trace_id") == trace_id and e["event"] == "agent.end"]
-    assert len(ends) == 4
+    assert len(ends) == 7
     assert all("output" not in e for e in ends)

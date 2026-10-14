@@ -47,10 +47,15 @@ TK = AgentSpec(
     "prompts/tk_agent.md",
     ("technology_profile", "requested_tools_status", "missing_inputs"),
 )
+# Intersection agents: each combines two foundational outputs and records the
+# trade-offs it made in `trade_offs`.
+PCK = AgentSpec("pck", "prompts/pck_agent.md", ("phase_content_map", "trade_offs"))
+TCK = AgentSpec("tck", "prompts/tck_agent.md", ("concept_representations", "trade_offs"))
+TPK = AgentSpec("tpk", "prompts/tpk_agent.md", ("phase_technology_map", "trade_offs"))
 TPACK = AgentSpec("tpack", "prompts/tpack_agent.md", schema=LessonPlan)
 MATERIALS = AgentSpec("materials", "prompts/tpack_materials_agent.md", schema=LessonMaterials)
 
-ALL_AGENTS = (CK, PK, TK, TPACK, MATERIALS)
+ALL_AGENTS = (CK, PK, TK, PCK, TCK, TPK, TPACK, MATERIALS)
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PROMPTS = {}

@@ -17,7 +17,7 @@ def test_happy_path_returns_lesson_and_trace(client, fake_backends):
     assert body["lesson"]["phases"][0]["name"] == "Engage"
     assert body["lesson"]["overview"]["title"] == "How plants make their food"
     assert body["_retrieved_ids"] == ["g7_ch01_s1.2_000", "g7_ch01_s1.2_001"]
-    assert [s["agent"] for s in body["agent_sequence"]] == ["ck", "pk", "tk", "tpack"]
+    assert [s["agent"] for s in body["agent_sequence"]] == ["ck", "pk", "tk", "pck", "tck", "tpk", "tpack"]
 
 
 def test_malformed_json_is_422_envelope(client):

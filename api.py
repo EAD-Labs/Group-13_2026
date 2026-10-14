@@ -11,7 +11,7 @@ logs/interactions.jsonl.
 import logging
 import os
 import time
-from typing import Any, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import http_exception_handler
@@ -237,6 +237,7 @@ class PlanNotes(BaseModel):
     approach_summary: Optional[str] = None
     pk_feasibility: List[Any] = Field(default_factory=list)
     tk_tool_status: List[Any] = Field(default_factory=list)
+    trade_offs: Dict[str, List[Any]] = Field(default_factory=dict)  # by agent: pck, tck, tpk
     removed_references: int = 0  # cited passages that were not retrieved
 
 

@@ -1182,6 +1182,13 @@
         typeof f === "string" ? f : `${f.requested}: ${f.issue} → ${f.alternative}`
       ))));
     }
+    const decisions = (data.lesson && data.lesson.design_decisions) || [];
+    if (decisions.length) {
+      body.push(sec("Why the plan looks like this", ul(decisions.map(d =>
+        `${d.decision}: ${d.chosen}` + (d.rejected ? ` (instead of ${d.rejected})` : "") +
+        (d.because && d.because.length ? ` — because ${d.because.join("; ")}` : "")
+      ))));
+    }
     if (notes.removed_references) {
       const n = notes.removed_references;
       body.push(el("p", { class: "hint-small", text: `${n} textbook reference${n === 1 ? " was" : "s were"} removed because ${n === 1 ? "it" : "they"} didn't match the passages used.` }));

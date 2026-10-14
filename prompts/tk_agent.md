@@ -3,10 +3,10 @@
 > Architecture note: this is a foundational-layer agent. It knows ONLY
 > general technology — what's available and what it's generally capable of —
 > never specific subject-matter content and never a chosen pedagogical
-> approach. A downstream Technological Content Knowledge (TCK) agent will
-> later combine this agent's output with the Content Knowledge agent's
+> approach. A downstream Technological Content Knowledge (TCK) agent
+> combines this agent's output with the Content Knowledge agent's
 > output to match technology to specific content, and a Technological
-> Pedagogical Knowledge (TPK) agent will combine it with the Pedagogical
+> Pedagogical Knowledge (TPK) agent combines it with the Pedagogical
 > Knowledge agent's output to match technology to a chosen teaching approach.
 > This agent must not anticipate or attempt either integration itself, and
 > must not produce lesson-specific recommendations.

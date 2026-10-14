@@ -66,6 +66,31 @@ FAKE_OUTPUTS = {
         "requested_tools_status": [{"tool": "PhET Simulations", "status": "available"}],
         "missing_inputs": [],
     },
+    "agent:pck": {
+        "phase_content_map": [],
+        "trade_offs": [
+            {
+                "decision": "How much to investigate",
+                "options": ["investigate every idea", "investigate one idea"],
+                "chosen": "investigate one idea",
+                "given_up": "students are told the rest",
+                "because": ["duration: 45", "prior_knowledge: new"],
+            }
+        ],
+        "content_gaps": [],
+    },
+    "agent:tck": {"concept_representations": [], "trade_offs": []},
+    "agent:tpk": {
+        "phase_technology_map": [],
+        "trade_offs": [
+            {
+                "decision": "Who runs the simulation",
+                "chosen": "teacher on the projector",
+                "given_up": "hands-on use by students",
+                "because": ["class_size: 40", "student_devices: none"],
+            }
+        ],
+    },
     "agent:tpack": {
         "overview": {
             "title": "How plants make their food",
@@ -99,6 +124,15 @@ FAKE_OUTPUTS = {
             },
         ],
         "not_covered": [],
+        "design_decisions": [
+            {
+                "decision": "Simulation use",
+                "chosen": "Teacher demonstrates on the projector",
+                "rejected": "Each student runs it",
+                "because": ["agent:tpk: no student devices"],
+                "agents": ["tk", "tpk"],
+            }
+        ],
     },
     "agent:materials": {
         "handouts": [

@@ -12,6 +12,7 @@ logs/sessions/<started>_<trace_id>.log. It shows the same events plus their
 handed to the next agent.
 
 Actors: human, api, validator, retriever, agent:ck, agent:pk, agent:tk,
+agent:pck, agent:tck, agent:tpk,
 agent:tpack, agent:materials.
 """
 

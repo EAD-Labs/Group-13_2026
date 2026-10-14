@@ -10,6 +10,16 @@ domain and without seeing each other's output:
 - the **Technological Knowledge (TK)** agent described WHAT technology is
   actually available and what it can do.
 
+Three intersection agents then combined them in pairs, each recording the
+trade-offs it had to make:
+
+- the **Pedagogical Content Knowledge (PCK)** agent placed the content into
+  the PK phases,
+- the **Technological Content Knowledge (TCK)** agent chose how the available
+  technology represents each concept,
+- the **Technological Pedagogical Knowledge (TPK)** agent matched the
+  available technology to each PK phase.
+
 Your job is to turn their work into a **run sheet a teacher can teach from
 directly**: short, numbered, concrete steps, not an analysis or a report.
 
@@ -47,6 +57,24 @@ ONLY ids you may put in `sources`, and the only content you may teach.
 
 ```json
 {tk_output}
+```
+
+## Pedagogical Content Knowledge agent output
+
+```json
+{pck_output}
+```
+
+## Technological Content Knowledge agent output
+
+```json
+{tck_output}
+```
+
+## Technological Pedagogical Knowledge agent output
+
+```json
+{tpk_output}
 ```
 
 ## Rules
@@ -95,6 +123,23 @@ ONLY ids you may put in `sources`, and the only content you may teach.
     `materials` is a checklist of everything the teacher needs, with
     quantities for the class size. `prep_before_class` is a checklist of
     what to do before the lesson starts.
+11. **Use the intersection agents.** Take each phase's content from the PCK
+    agent's `phase_content_map`, its representations from the TCK agent's
+    `concept_representations`, and its tool use from the TPK agent's
+    `phase_technology_map`. Keep the trade-offs they already made unless
+    they contradict each other or a rule above.
+12. **Record your design decisions.** In `design_decisions`, list every
+    point where you had to choose between the agents' suggestions or
+    between the teacher's request and a constraint (for example the PCK
+    agent wants an investigation but the TPK agent says there is no time or
+    equipment for it). Each item says what was decided, what was chosen,
+    what was rejected, `because` (the request values or agent outputs that
+    forced it, e.g. `"duration: 11 minutes"`, `"agent:tpk: no student
+    devices"`) and `agents` (which of ck, pk, tk, pck, tck, tpk it settles).
+    Include the most important trade-offs from the PCK, TCK and TPK agents
+    that shaped the final plan. This is for the teacher and for review, so
+    write it in plain language; field names are allowed only inside
+    `because`.
 
 ## Required output
 
@@ -120,5 +165,14 @@ Respond with a single JSON object in exactly this shape and nothing else:
       "sources": ["g7_ch01_s1.2_000"]
     }}
   ],
-  "not_covered": []
+  "not_covered": [],
+  "design_decisions": [
+    {{
+      "decision": "How much of the lesson can be inquiry-based",
+      "chosen": "One short guided question the whole class investigates from a demonstration",
+      "rejected": "Small-group investigations",
+      "because": ["duration: 11 minutes", "class_size: 40", "agent:tpk: no student devices"],
+      "agents": ["pk", "pck", "tpk"]
+    }}
+  ]
 }}

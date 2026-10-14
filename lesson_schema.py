@@ -54,10 +54,21 @@ class Overview(_Out):
     prep_before_class: List[Line] = Field(default_factory=list, max_length=20)
 
 
+class DesignDecision(_Out):
+    """A trade-off the TPACK integrator settled, with what forced it."""
+
+    decision: Line
+    chosen: Line
+    rejected: Text = ""
+    because: List[Short] = Field(default_factory=list, max_length=10)
+    agents: List[Short] = Field(default_factory=list, max_length=7)
+
+
 class LessonPlan(_Out):
     overview: Overview
     phases: List[Phase] = Field(min_length=1, max_length=10)
     not_covered: List[Line] = Field(default_factory=list, max_length=20)
+    design_decisions: List[DesignDecision] = Field(default_factory=list, max_length=12)
 
 
 # --- Stage 2: handouts and exit ticket ---------------------------------------
