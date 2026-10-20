@@ -61,7 +61,7 @@ Details by module:
   - `log_event(event, actor, **fields)` writes one JSON line to `logs/interactions.jsonl` with `trace_id` and a per-trace `seq`.
   - Actors are `human`, `api`, `validator`, `retriever` and `agent:<name>`. Agent-to-agent flow is recorded as `agent.handoff` events and trade-offs as `agent.decision` events.
   - Keep new events on this vocabulary so `trace.py` output stays readable.
-  - Large payloads (agent inputs/outputs, hand-off contents, retrieved passages, prompts) go in `log_event(..., detail={...})`, never in `**fields`. `detail` is written only to the per-session file `logs/sessions/<started>_<trace_id>.log` (`SessionFileHandler`, gated by `config.LOG_SESSION_PAYLOADS`) and to the JSONL when `LOG_FULL_PAYLOADS` is on; the console never shows it.
+  - Large payloads (agent inputs/outputs, hand-off contents, retrieved passages, prompts) go in `log_event(..., detail={...})`, never in `**fields`. `detail` is written only to the per-session file `logs/sessions/<started>_<trace_id>.log` (`SessionFileHandler`, gated by `config.LOG_SESSION_PAYLOADS`) and to the JSONL when `LOG_FULL_PAYLOADS` is on. The console shows it only when the `LOG_CONSOLE_PAYLOADS=1` env var is set (the Dockerfile sets it, so Render's Logs tab shows the full session log).
 - **Retrieval (`retrieval.py`)** opens the collection lazily, so a missing index is a 503 at request time, not an import crash.
 - **Ingestion (`ingest.py`)** rebuilds the collection on every run.
   - Chapter files need `## X.Y Title` headings with blank-line-separated paragraphs.

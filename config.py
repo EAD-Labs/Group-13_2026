@@ -1,5 +1,7 @@
 """Central configuration for the AgentTPACK RAG proof-of-concept."""
 
+import os
+
 CHROMA_PATH = "./chroma_store"
 COLLECTION_NAME = "ncert_g7_biology"
 # Embeddings use ChromaDB's DefaultEmbeddingFunction: all-MiniLM-L6-v2 run
@@ -57,6 +59,10 @@ LOG_SESSION_FILES = True
 LOG_SESSION_DIR = "sessions"
 LOG_SESSION_PAYLOADS = True
 LOG_SESSION_MAX_FILES = 500
+# Hosts without a shell (Render's free tier) can't open the session files, so
+# LOG_CONSOLE_PAYLOADS=1 in the environment prints the session log, payloads
+# included, to the console instead of the one-line summaries.
+LOG_CONSOLE_PAYLOADS = os.getenv("LOG_CONSOLE_PAYLOADS") == "1"
 
 # --- LLM -----------------------------------------------------------------------
 

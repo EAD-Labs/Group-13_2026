@@ -126,7 +126,9 @@ class SessionFormatter(logging.Formatter):
     _SKIP = {"trace_id", "seq", "actor", "event"}
 
     def format(self, record):
-        fields = record.event_fields
+        fields = getattr(record, "event_fields", None)
+        if not fields:
+            return super().format(record)
         event = fields.get("event", "")
         ts = datetime.fromtimestamp(record.created).strftime("%H:%M:%S.%f")[:-3]
         lines = []
@@ -196,7 +198,7 @@ def configure_logging():
     logger.addHandler(file_handler)
 
     console = logging.StreamHandler(sys.stderr)
-    console.setFormatter(ConsoleFormatter())
+    console.setFormatter(SessionFormatter() if config.LOG_CONSOLE_PAYLOADS else ConsoleFormatter())
     logger.addHandler(console)
 
     global _session_handler
