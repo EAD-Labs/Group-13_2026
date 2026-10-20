@@ -17,13 +17,14 @@ came from.
 | Piece | Choice |
 | --- | --- |
 | Vector store | ChromaDB `PersistentClient`, embedded, `./chroma_store` |
-| Embeddings | `sentence-transformers` `all-MiniLM-L6-v2`, running locally |
+| Embeddings | `all-MiniLM-L6-v2` via ChromaDB's ONNX default embedding function, running locally |
 | Chunking | `langchain-text-splitters` `RecursiveCharacterTextSplitter` |
 | LLM | Gemini via its OpenAI-compatible endpoint, using the `openai` client |
 | API | FastAPI + uvicorn |
 | Frontend | one vanilla HTML file, no build step |
 
-No PostgreSQL, no Docker, no LangChain chains/retrievers/vectorstores, no
+No PostgreSQL, no Docker for local development (the `Dockerfile` is only
+for hosting on Render), no LangChain chains/retrievers/vectorstores, no
 LangGraph, no React, no auth, no PDF parsing.
 
 ## Setup
@@ -156,6 +157,7 @@ Every error returns one envelope:
 | `unsafe_topic` | 422 | Unsafe content or a prompt-injection attempt in a free-text field |
 | `incomplete_constraints` | 422 | Contradictory classroom details (for example, 1:1 devices with no student devices) |
 | `topic_not_in_source` | 422 | The topic isn't covered by the chapter (retrieval distance above `RELEVANCE_MAX_DISTANCE`) |
+| `content_flagged` | 422 | The Gemini input screen found offensive, harmful, unethical, illegal or out-of-scope content (policy in `prompts/guidelines.md`); each flagged field is listed in `details` |
 | `not_found` | 404 | Unknown chunk id or API path |
 | `llm_failure` / `agent_output_invalid` | 502 | Gemini failed or returned unusable output |
 | `index_unavailable` | 503 | `python ingest.py` has not been run |
@@ -200,7 +202,7 @@ in `config.py`.
 | Far fewer chunks than expected, or one giant chunk per section | Paragraphs are not separated by blank lines, so the splitter's first separator (`"\n\n"`) never fires. | Put a genuine blank line between paragraphs. Chunks under 100 characters are also skipped by design. |
 | All distances cluster around the same value; retrieval feels random | Chunks are too long, so every embedding averages out to roughly the same vector. | Lower `CHUNK_SIZE` in `config.py` (try 500–700), re-run `python ingest.py`. |
 | `agent_output_invalid` with "prompt placeholder" (`agent.error reason=prompt_placeholder` in the log) | A literal `{` or `}` in a `prompts/*.md` file that is not a real placeholder (most often the JSON example), or a new placeholder that `run.py` does not fill. | Double every literal brace: `{{` and `}}`. Make sure every single-brace placeholder is passed in by `run_pipeline`. |
-| "The AI service is overloaded right now" (502 `llm_failure`) | Gemini returned 503 (high demand) or 429 (quota used up) for every configured model. Each request makes 4 calls, so free-tier quotas run out fast. | Run `python trace.py --last`: `llm.retry` lines show each model and status. Wait a few minutes, set `GEMINI_FALLBACK_MODELS` in `.env` (comma-separated) to other models your key can use, or enable billing on the key for higher limits. |
+| "The AI service is overloaded right now" (502 `llm_failure`) | Gemini returned 503 (high demand) or 429 (quota used up) for every configured model. A plan makes 9 calls (input screen, 7 agents, output screen) and the handouts and quiz 2 more, plus a rewrite if the content review flags something, so free-tier quotas run out fast. | Run `python trace.py --last`: `llm.retry` lines show each model and status. Wait a few minutes, set `GEMINI_FALLBACK_MODELS` in `.env` (comma-separated) to other models your key can use, or enable billing on the key for higher limits. |
 | Valid chapter topics rejected with `topic_not_in_source` | `RELEVANCE_MAX_DISTANCE` is too strict for your chapter text. | Look at the `retrieval.done` distances in `python trace.py --last` and adjust the threshold in `config.py`. |
 | `NotFoundError` / model-not-found from the Gemini call | `GEMINI_MODEL` names a model your key cannot reach. | List what the key can see: `python -c "from llm import client; print([m.id for m in client.models.list()])"`, then set `GEMINI_MODEL` to one of them. |
 | `POST /api/generate` returns 404 | The `StaticFiles` mount is registered before the API routes, so its catch-all swallows them. | `app.mount("/", ...)` must be the **last** line of `api.py`. |

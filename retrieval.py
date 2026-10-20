@@ -20,14 +20,12 @@ def _get_collection():
         return _collection
     try:
         import chromadb
-        from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+        from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
         client = chromadb.PersistentClient(path=config.CHROMA_PATH)
         _collection = client.get_collection(
             name=config.COLLECTION_NAME,
-            embedding_function=SentenceTransformerEmbeddingFunction(
-                model_name=config.EMBEDDING_MODEL
-            ),
+            embedding_function=DefaultEmbeddingFunction(),
         )
     except Exception as e:
         log_event(

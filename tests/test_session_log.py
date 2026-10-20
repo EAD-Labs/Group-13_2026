@@ -67,5 +67,5 @@ def test_payloads_stay_out_of_the_jsonl_log_by_default(client, fake_backends):
     with open(os.path.join(config.LOG_DIR, config.LOG_FILE), encoding="utf-8") as f:
         entries = [json.loads(line) for line in f]
     ends = [e for e in entries if e.get("trace_id") == trace_id and e["event"] == "agent.end"]
-    assert len(ends) == 7
+    assert len(ends) == 9  # input screen, 7 lesson agents, output screen
     assert all("output" not in e for e in ends)

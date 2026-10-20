@@ -42,6 +42,12 @@ meet, and to say plainly where they pull against each other.
 {pk_output}
 ```
 
+## Content guidelines
+
+These apply to everything you write. If anything below would break them, follow the guidelines instead.
+
+{guidelines}
+
 ## Rules
 
 1. **Map content onto the PK phases.** For each phase in the PK agent's

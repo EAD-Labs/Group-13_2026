@@ -4,9 +4,11 @@ The TPACK integrator returns a LessonPlan; the materials agent (second stage)
 returns LessonMaterials. agents.run_agent validates each against these models
 and retries once with the validation errors if the model gets it wrong. The
 frontend renders the result screen and the print view from the same shapes.
+
+The two screening agents (screening.py) return InputScreen and OutputScreen.
 """
 
-from typing import Annotated, List, Literal
+from typing import Annotated, List, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
@@ -113,3 +115,44 @@ class ExitQuestion(_Out):
 class LessonMaterials(_Out):
     handouts: List[Handout] = Field(min_length=1, max_length=6)
     exit_ticket: List[ExitQuestion] = Field(min_length=3, max_length=8)
+
+
+# --- Content screening (screening.py) ----------------------------------------
+
+
+class InputIssue(_Out):
+    field: Short  # dotted request field, e.g. content.topic
+    category: Short
+    reason: Line
+
+
+class InputScreen(_Out):
+    verdict: Literal["allow", "flag"]
+    issues: List[InputIssue] = Field(default_factory=list, max_length=20)
+
+    @model_validator(mode="after")
+    def _issues_decide(self):
+        # Contradictory answers fail closed: any issue means the request is flagged.
+        if self.issues:
+            self.verdict = "flag"
+        elif self.verdict == "flag":
+            raise ValueError("a flagged request must list at least one issue")
+        return self
+
+
+class OutputIssue(_Out):
+    path: List[Union[int, str]] = Field(min_length=1, max_length=8)
+    problem: Line
+
+
+class OutputScreen(_Out):
+    verdict: Literal["clean", "flagged"]
+    issues: List[OutputIssue] = Field(default_factory=list, max_length=30)
+
+    @model_validator(mode="after")
+    def _issues_decide(self):
+        if self.issues:
+            self.verdict = "flagged"
+        elif self.verdict == "flagged":
+            raise ValueError("flagged content must list at least one issue")
+        return self

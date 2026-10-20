@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentTPACK Architecture</title>
+<style>
+  :root {
+    --bg: #fbfaf7;
+    --panel: #ffffff;
+    --fg: #1d1d1b;
+    --muted: #5f5e58;
+    --line: #dcd9d0;
+    --accent: #2f5d8a;
+    --accent-soft: #e6eef6;
+    --node: #ffffff;
+    --node-ext: #f1efe8;
+    --node-hl: #e6eef6;
+    --edge: #7b7a73;
+    --code-bg: #f3f1ea;
+    --warn-bg: #fdf3e2;
+    --warn-line: #d9a441;
+    --ok: #2e7d4f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161614;
+      --panel: #1f1f1c;
+      --fg: #ecebe6;
+      --muted: #a9a79f;
+      --line: #3a3934;
+      --accent: #8db6e0;
+      --accent-soft: #1f2d3b;
+      --node: #24241f;
+      --node-ext: #2c2b26;
+      --node-hl: #1f2d3b;
+      --edge: #9a988f;
+      --code-bg: #2a2925;
+      --warn-bg: #33291a;
+      --warn-line: #b8862f;
+      --ok: #6cc596;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161614; --panel: #1f1f1c; --fg: #ecebe6; --muted: #a9a79f; --line: #3a3934;
+    --accent: #8db6e0; --accent-soft: #1f2d3b; --node: #24241f; --node-ext: #2c2b26;
+    --node-hl: #1f2d3b; --edge: #9a988f; --code-bg: #2a2925; --warn-bg: #33291a;
+    --warn-line: #b8862f; --ok: #6cc596;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  code, pre, .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.88em; }
+  code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; }
+  pre { background: var(--code-bg); padding: 14px 16px; border-radius: 8px; overflow-x: auto; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  a { color: var(--accent); }
+
+  .layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); max-width: 1280px; margin: 0 auto; }
+  nav.toc {
+    position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+    padding: 28px 16px 28px 24px; border-right: 1px solid var(--line); font-size: 14px;
+  }
+  nav.toc .brand { font-weight: 700; font-size: 15px; margin-bottom: 14px; }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  nav.toc li { counter-increment: toc; margin: 2px 0; }
+  nav.toc a { display: block; padding: 4px 8px; border-radius: 6px; color: var(--muted); text-decoration: none; }
+  nav.toc a::before { content: counter(toc) ". "; }
+  nav.toc a:hover { background: var(--accent-soft); color: var(--fg); }
+
+  main { padding: 32px 40px 80px; min-width: 0; }
+  header.hero h1 { font-size: 2rem; margin: 0 0 6px; line-height: 1.2; }
+  header.hero p.lede { color: var(--muted); font-size: 1.08rem; margin: 0 0 20px; max-width: 760px; }
+  section { margin-top: 48px; scroll-margin-top: 16px; }
+  h2 { font-size: 1.45rem; margin: 0 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 1.1rem; margin: 26px 0 8px; }
+  p, li { max-width: 860px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 16px 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card h4 { margin: 0 0 4px; font-size: 0.98rem; }
+  .card p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.93rem; background: var(--panel); }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border: 1px solid var(--line); }
+  th { background: var(--code-bg); font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+
+  figure { margin: 18px 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  figure .scroll { overflow-x: auto; }
+  figure svg { display: block; width: 100%; min-width: 760px; height: auto; }
+  figcaption { color: var(--muted); font-size: 0.88rem; margin-top: 8px; }
+
+  svg .n { fill: var(--node); stroke: var(--line); stroke-width: 1.5; }
+  svg .n-ext { fill: var(--node-ext); stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  svg .n-hl { fill: var(--node-hl); stroke: var(--accent); stroke-width: 1.5; }
+  svg .t { fill: var(--fg); font: 600 15px system-ui, sans-serif; }
+  svg .s { fill: var(--muted); font: 12.5px system-ui, sans-serif; }
+  svg .lbl { fill: var(--muted); font: italic 12px system-ui, sans-serif; }
+  svg .hdr { fill: var(--accent); font: 700 13px system-ui, sans-serif; letter-spacing: 0.04em; }
+  svg .e { fill: none; stroke: var(--edge); stroke-width: 1.6; }
+  svg .e-dash { fill: none; stroke: var(--edge); stroke-width: 1.4; stroke-dasharray: 6 5; }
+  svg .ah { fill: var(--edge); }
+
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 16px 0; }
+  .flow .step { flex: 1 1 150px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 0.9rem; }
+  .flow .step b { display: block; font-size: 0.95rem; }
+  .flow .step span { color: var(--muted); }
+  .flow .arrow { align-self: center; color: var(--edge); font-size: 1.2rem; }
+
+  ol.timeline { list-style: none; padding: 0; margin: 16px 0; border-left: 2px solid var(--line); }
+  ol.timeline > li { position: relative; padding: 0 0 18px 22px; }
+  ol.timeline > li::before {
+    content: ""; position: absolute; left: -7px; top: 6px; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--panel); border: 2px solid var(--accent);
+  }
+  ol.timeline .who { font-weight: 600; }
+  ol.timeline .where { color: var(--muted); font-size: 0.88rem; }
+
+  .note { background: var(--accent-soft); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 6px; margin: 14px 0; }
+  .warn { background: var(--warn-bg); border-left: 3px solid var(--warn-line); padding: 10px 14px; border-radius: 6px; margin: 14px 0; }
+
+  .chunk-id { font-family: ui-monospace, Consolas, monospace; font-size: 1.15rem; display: flex; flex-wrap: wrap; gap: 2px; margin: 10px 0; }
+  .chunk-id span { padding: 4px 6px; border-radius: 4px; background: var(--code-bg); }
+  .chunk-id span.k { background: var(--accent-soft); }
+  .chunk-legend { font-size: 0.9rem; color: var(--muted); }
+
+  .tree { font-family: ui-monospace, Consolas, monospace; font-size: 0.86rem; line-height: 1.55; white-space: pre; overflow-x: auto; background: var(--code-bg); padding: 14px 16px; border-radius: 8px; }
+  .tree .c { color: var(--muted); }
+
+  .pill { display: inline-block; font-size: 0.78rem; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); padding: 16px; }
+    nav.toc ol { columns: 2; column-gap: 12px; }
+    main { padding: 20px 16px 60px; }
+    header.hero h1 { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Shared SVG defs -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" class="ah"/>
+    </marker>
+  </defs>
+</svg>
+
+<div class="layout">
+<nav class="toc" aria-label="Contents">
+  <div class="brand">AgentTPACK internals</div>
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#system">System map</a></li>
+    <li><a href="#lifecycle">One request, step by step</a></li>
+    <li><a href="#agents">The agent graph</a></li>
+    <li><a href="#runner">How an agent runs</a></li>
+    <li><a href="#llm">Talking to Gemini</a></li>
+    <li><a href="#post">Post-processing</a></li>
+    <li><a href="#materials">Stage 2: materials</a></li>
+    <li><a href="#guardrails">Guardrails</a></li>
+    <li><a href="#data">Textbook data pipeline</a></li>
+    <li><a href="#schemas">Data contracts</a></li>
+    <li><a href="#errors">Errors</a></li>
+    <li><a href="#logging">Logging &amp; tracing</a></li>
+    <li><a href="#frontend">Frontend</a></li>
+    <li><a href="#api">API reference</a></li>
+    <li><a href="#config">Configuration</a></li>
+    <li><a href="#tests">Tests</a></li>
+    <li><a href="#files">File map</a></li>
+    <li><a href="#caveats">Known gaps</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <h1>AgentTPACK: how it works inside</h1>
+  <p class="lede">A teacher fills in a browser wizard. The server checks the request, finds the right NCERT Class 7 textbook passages, runs seven Gemini agents and returns a lesson plan with citations to the textbook. A second call then writes the handouts and a quiz. This page follows that path through the code.</p>
+  <p style="color:var(--muted);font-size:0.92rem;margin:0">Companion pages: <a href="flowchart.html">flowchart.html</a> (the whole flow in one picture) · <a href="execution_flow.html">execution_flow.html</a> (exact objects, in order) · <a href="index.html">all pages</a></p>
+</header>
+
+<!-- 1 -->
+<section id="overview">
+  <h2>Overview</h2>
+  <p>The design is built around the <strong>TPACK</strong> framework: good technology-supported teaching sits where <em>Content</em>, <em>Pedagogical</em> and <em>Technological</em> knowledge overlap. The code mirrors that literally. Each knowledge area gets its own agent, each overlap of two areas gets its own agent, and a final agent combines everything.</p>
+
+  <div class="cards">
+    <div class="card"><h4>Grounded in the textbook</h4><p>Agents may only teach what the retrieved passages say. Every phase cites chunk ids, and the frontend resolves each one back to the original paragraph.</p></div>
+    <div class="card"><h4>Agents in separate domains</h4><p>CK, PK and TK never see each other's output. The PK and TK prompts forbid stepping into the other domains.</p></div>
+    <div class="card"><h4>Trade-offs are logged</h4><p>Every compromise an agent makes (for example "inquiry scoped down because only 11 minutes") is logged and shown to the teacher.</p></div>
+    <div class="card"><h4>Stateless server</h4><p>Nothing is stored between calls. The browser holds the plan and sends it back for stage 2.</p></div>
+  </div>
+
+  <h3>Stack</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Piece</th><th>Choice</th><th>Where</th></tr>
+    <tr><td>Web server</td><td>FastAPI + uvicorn</td><td><code>api.py</code></td></tr>
+    <tr><td>Request / response validation</td><td>Pydantic v2</td><td><code>api.py</code>, <code>lesson_schema.py</code></td></tr>
+    <tr><td>Vector store</td><td>ChromaDB <code>PersistentClient</code> (embedded, on disk)</td><td><code>./chroma_store</code></td></tr>
+    <tr><td>Embeddings</td><td>sentence-transformers <code>all-MiniLM-L6-v2</code>, run locally</td><td><code>ingest.py</code>, <code>retrieval.py</code></td></tr>
+    <tr><td>Chunking</td><td><code>RecursiveCharacterTextSplitter</code> (the only LangChain piece)</td><td><code>ingest.py</code></td></tr>
+    <tr><td>LLM</td><td>Gemini through its OpenAI-compatible endpoint, using the <code>openai</code> client</td><td><code>llm.py</code></td></tr>
+    <tr><td>Frontend</td><td>One vanilla HTML/JS file, no build step</td><td><code>static/index.html</code></td></tr>
+    <tr><td>Storage</td><td>None besides ChromaDB and log files. No database, no auth.</td><td><code>logs/</code></td></tr>
+  </table></div>
+</section>
+
+<!-- 2 -->
+<section id="system">
+  <h2>System map</h2>
+  <p>Solid arrows are calls. Dashed boxes are things outside the Python code: the vector index on disk, the prompt files and the Gemini API.</p>
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 1100 480" role="img" aria-label="System map: browser to api.py to run.py, which calls validation, retrieval and agents; retrieval uses ChromaDB; agents use prompt files and llm.py, which calls Gemini; everything logs through logging_setup.">
+      <!-- nodes -->
+      <rect class="n-hl" x="10" y="160" width="160" height="100" rx="10"/>
+      <text class="t" x="90" y="192" text-anchor="middle">Browser</text>
+      <text class="s" x="90" y="214" text-anchor="middle">static/index.html</text>
+      <text class="s" x="90" y="233" text-anchor="middle">wizard · result tabs</text>
+
+      <rect class="n" x="230" y="160" width="170" height="100" rx="10"/>
+      <text class="t" x="315" y="192" text-anchor="middle">api.py</text>
+      <text class="s" x="315" y="214" text-anchor="middle">FastAPI routes</text>
+      <text class="s" x="315" y="233" text-anchor="middle">input models · trace · errors</text>
+
+      <rect class="n" x="460" y="160" width="170" height="100" rx="10"/>
+      <text class="t" x="545" y="192" text-anchor="middle">run.py</text>
+      <text class="s" x="545" y="214" text-anchor="middle">orchestrator</text>
+      <text class="s" x="545" y="233" text-anchor="middle">run_pipeline · run_materials</text>
+
+      <rect class="n" x="690" y="20" width="180" height="70" rx="10"/>
+      <text class="t" x="780" y="49" text-anchor="middle">validation.py</text>
+      <text class="s" x="780" y="70" text-anchor="middle">safety · consistency · relevance</text>
+
+      <rect class="n" x="690" y="130" width="180" height="70" rx="10"/>
+      <text class="t" x="780" y="159" text-anchor="middle">retrieval.py</text>
+      <text class="s" x="780" y="180" text-anchor="middle">top-4 semantic search</text>
+
+      <rect class="n" x="690" y="240" width="180" height="70" rx="10"/>
+      <text class="t" x="780" y="269" text-anchor="middle">agents.py</text>
+      <text class="s" x="780" y="290" text-anchor="middle">agent specs · run_agent</text>
+
+      <rect class="n" x="690" y="350" width="180" height="70" rx="10"/>
+      <text class="t" x="780" y="379" text-anchor="middle">llm.py</text>
+      <text class="s" x="780" y="400" text-anchor="middle">retry · fallback · JSON parse</text>
+
+      <rect class="n-ext" x="930" y="130" width="160" height="70" rx="10"/>
+      <text class="t" x="1010" y="159" text-anchor="middle">ChromaDB</text>
+      <text class="s" x="1010" y="180" text-anchor="middle">./chroma_store</text>
+
+      <rect class="n-ext" x="930" y="240" width="160" height="70" rx="10"/>
+      <text class="t" x="1010" y="269" text-anchor="middle">prompts/*.md</text>
+      <text class="s" x="1010" y="290" text-anchor="middle">8 prompt templates</text>
+
+      <rect class="n-ext" x="930" y="350" width="160" height="70" rx="10"/>
+      <text class="t" x="1010" y="379" text-anchor="middle">Gemini API</text>
+      <text class="s" x="1010" y="400" text-anchor="middle">OpenAI-compatible</text>
+
+      <rect class="n" x="230" y="390" width="400" height="70" rx="10"/>
+      <text class="t" x="430" y="419" text-anchor="middle">logging_setup.py</text>
+      <text class="s" x="430" y="440" text-anchor="middle">logs/interactions.jsonl · logs/sessions/&lt;trace&gt;.log</text>
+
+      <!-- edges -->
+      <path class="e" d="M170 198 L228 198" marker-end="url(#arr)"/>
+      <path class="e-dash" d="M230 226 L172 226" marker-end="url(#arr)"/>
+      <text class="lbl" x="200" y="190" text-anchor="middle">POST</text>
+      <text class="lbl" x="200" y="244" text-anchor="middle">JSON</text>
+
+      <path class="e" d="M400 210 L458 210" marker-end="url(#arr)"/>
+
+      <path class="e" d="M630 185 C660 185 660 55 688 55" marker-end="url(#arr)"/>
+      <path class="e" d="M630 205 C660 205 660 165 688 165" marker-end="url(#arr)"/>
+      <path class="e" d="M630 230 C660 230 660 275 688 275" marker-end="url(#arr)"/>
+
+      <path class="e" d="M870 165 L928 165" marker-end="url(#arr)"/>
+      <path class="e" d="M870 275 L928 275" marker-end="url(#arr)"/>
+      <path class="e" d="M780 310 L780 348" marker-end="url(#arr)"/>
+      <path class="e" d="M870 385 L928 385" marker-end="url(#arr)"/>
+
+      <!-- api -> retrieval for /api/chunks -->
+      <path class="e" d="M315 160 C315 105 600 105 688 150" marker-end="url(#arr)"/>
+      <text class="lbl" x="470" y="104" text-anchor="middle">GET /api/chunks/{id} → get_chunk()</text>
+
+      <!-- logging -->
+      <path class="e-dash" d="M315 260 L315 388" marker-end="url(#arr)"/>
+      <path class="e-dash" d="M545 260 L545 388" marker-end="url(#arr)"/>
+      <text class="lbl" x="430" y="330" text-anchor="middle">log_event() is called from every module</text>
+    </svg>
+    </div>
+    <figcaption>Runtime components. <code>ingest.py</code> and <code>prepare_textbook.py</code> are offline scripts that build ChromaDB (<a href="#data">§10</a>). <code>errors.py</code> and <code>config.py</code> are imported everywhere.</figcaption>
+  </figure>
+</section>
+
+<!-- 3 -->
+<section id="lifecycle">
+  <h2>One request, step by step</h2>
+  <p>Here is what happens between the teacher clicking <em>Generate lesson</em> and the plan appearing. Each step names the log event it writes, so you can match it against <code>python trace.py --last</code>.</p>
+
+  <ol class="timeline">
+    <li><div class="who">Browser builds the payload</div>
+      <div class="where"><code>buildPayload()</code> in index.html</div>
+      Every wizard input has a <code>data-field</code> such as <code>technology.student_devices</code>. The dotted name becomes the nested JSON path: <code>{content, learners, pedagogy, technology, other_requests}</code>. Empty optional fields are left out. The page sends it with <code>POST /api/generate</code>.</li>
+
+    <li><div class="who">Trace middleware starts a trace</div>
+      <div class="where"><code>trace_middleware</code> in api.py → <code>start_trace()</code> · event <code>human.request</code></div>
+      It reuses an incoming <code>X-Trace-Id</code> / <code>X-Request-ID</code> if that is 8–64 safe characters, otherwise makes a new UUID. The id and a per-request <code>seq</code> counter live in <code>contextvars</code>, so every log line from this request is tagged without passing anything around.</li>
+
+    <li><div class="who">Pydantic validates the shape</div>
+      <div class="where"><code>TPACKRequest</code> in api.py · event <code>validation.rejected</code> on failure</div>
+      Unknown fields are rejected (<code>extra="forbid"</code>). Enums and number ranges are enforced. Every string first goes through <code>sanitize_text()</code> (NFKC normalisation, removing control and zero-width characters, collapsing whitespace), and a blank string becomes <code>None</code>. Failures return 422 with one <code>details[]</code> entry per field.</li>
+
+    <li><div class="who">Route logs the submission and hands off</div>
+      <div class="where"><code>generate()</code> in api.py · event <code>human.lesson_submitted</code></div>
+      The route is a plain <code>def</code>, so FastAPI runs it in a thread pool. It calls <code>run.run_pipeline(body)</code>.</li>
+
+    <li><div class="who">Safety and consistency checks</div>
+      <div class="where"><code>check_safety</code>, <code>check_consistency</code> in validation.py · event <code>validation.passed</code></div>
+      All 8 free-text fields are checked against prompt-injection patterns and then unsafe-content patterns. Contradictory settings (for example a 1:1 device setup with no student devices) raise 422. Softer issues such as "tools listed but no internet" become warnings that are returned with the plan.</li>
+
+    <li><div class="who">Retrieve textbook passages</div>
+      <div class="where"><code>retrieve()</code> in retrieval.py · event <code>retrieval.done</code></div>
+      ChromaDB embeds the topic text and returns the <strong>4 closest chunks</strong>, filtered to the chosen chapter (<code>where={"chapter_num": N}</code>). Each chunk has an id, text, metadata and a cosine distance.</li>
+
+    <li><div class="who">Relevance gate</div>
+      <div class="where"><code>check_relevance</code> in validation.py</div>
+      If even the closest chunk is further than <code>RELEVANCE_MAX_DISTANCE = 0.80</code>, the topic is judged not to be in that chapter and the request ends with 422 <code>topic_not_in_source</code>. No LLM call is spent on it.</li>
+
+    <li><div class="who">Seven agents run, one after another</div>
+      <div class="where"><code>run_agent()</code> in agents.py · events <code>agent.handoff</code>, <code>agent.start</code>, <code>llm.response</code>, <code>agent.end</code>, <code>agent.decision</code></div>
+      CK → PK → TK → PCK → TCK → TPK → TPACK. Each is one Gemini call. The next section covers who receives what.</li>
+
+    <li><div class="who">Post-processing</div>
+      <div class="where">run.py · event <code>citation.invalid</code> when needed</div>
+      Citations the model invented are removed, chunk ids that leaked into the prose are scrubbed, the phase timings are checked, content gaps are merged and missing-detail questions are built. See <a href="#post">§7</a>.</li>
+
+    <li><div class="who">Response</div>
+      <div class="where">event <code>pipeline.done</code>, then <code>human.response</code></div>
+      FastAPI checks the result against <code>GenerateResponse</code> and returns it with an <code>X-Trace-Id</code> header.</li>
+
+    <li><div class="who">Browser renders and immediately asks for stage 2</div>
+      <div class="where"><code>renderResult()</code> → <code>loadMaterials()</code></div>
+      The Plan tab appears straight away. The handouts and quiz load in the background with <code>POST /api/materials</code> under the <em>same</em> trace id.</li>
+  </ol>
+</section>
+
+<!-- 4 -->
+<section id="agents">
+  <h2>The agent graph</h2>
+  <p>Seven agents produce the plan and one more produces the materials. They <em>run</em> one at a time in this order: CK, PK, TK, PCK, TCK, TPK, TPACK. But the <em>information</em> flows like this:</p>
+
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 1000 480" role="img" aria-label="Agent graph: CK, PK and TK feed pairwise into PCK (CK+PK), TCK (CK+TK) and TPK (PK+TK); all six feed TPACK; TPACK's plan feeds MATERIALS in stage 2.">
+      <text class="hdr" x="120" y="34" text-anchor="middle">1 · FOUNDATIONAL</text>
+      <text class="hdr" x="500" y="34" text-anchor="middle">2 · INTERSECTIONS</text>
+      <text class="hdr" x="870" y="34" text-anchor="middle">3 · INTEGRATION</text>
+
+      <rect class="n" x="20" y="60" width="200" height="80" rx="10"/>
+      <text class="t" x="120" y="88" text-anchor="middle">CK · Content</text>
+      <text class="s" x="120" y="109" text-anchor="middle">sees: textbook passages</text>
+      <text class="s" x="120" y="127" text-anchor="middle">concepts · order · misconceptions</text>
+
+      <rect class="n" x="20" y="200" width="200" height="80" rx="10"/>
+      <text class="t" x="120" y="228" text-anchor="middle">PK · Pedagogy</text>
+      <text class="s" x="120" y="249" text-anchor="middle">sees: learners + method</text>
+      <text class="s" x="120" y="267" text-anchor="middle">phases · grouping · assessment</text>
+
+      <rect class="n" x="20" y="340" width="200" height="80" rx="10"/>
+      <text class="t" x="120" y="368" text-anchor="middle">TK · Technology</text>
+      <text class="s" x="120" y="389" text-anchor="middle">sees: classroom setup</text>
+      <text class="s" x="120" y="407" text-anchor="middle">tool profile · tool status</text>
+
+      <rect class="n" x="400" y="60" width="200" height="80" rx="10"/>
+      <text class="t" x="500" y="88" text-anchor="middle">PCK</text>
+      <text class="s" x="500" y="109" text-anchor="middle">CK + PK (+ passages)</text>
+      <text class="s" x="500" y="127" text-anchor="middle">content → each phase</text>
+
+      <rect class="n" x="400" y="200" width="200" height="80" rx="10"/>
+      <text class="t" x="500" y="228" text-anchor="middle">TCK</text>
+      <text class="s" x="500" y="249" text-anchor="middle">CK + TK (+ passages)</text>
+      <text class="s" x="500" y="267" text-anchor="middle">concept → representation</text>
+
+      <rect class="n" x="400" y="340" width="200" height="80" rx="10"/>
+      <text class="t" x="500" y="368" text-anchor="middle">TPK</text>
+      <text class="s" x="500" y="389" text-anchor="middle">PK + TK</text>
+      <text class="s" x="500" y="407" text-anchor="middle">tool → each phase</text>
+
+      <rect class="n-hl" x="760" y="150" width="220" height="100" rx="10"/>
+      <text class="t" x="870" y="182" text-anchor="middle">TPACK integrator</text>
+      <text class="s" x="870" y="206" text-anchor="middle">all 6 outputs + passages</text>
+      <text class="s" x="870" y="228" text-anchor="middle">→ LessonPlan (schema-checked)</text>
+
+      <rect class="n" x="760" y="350" width="220" height="80" rx="10"/>
+      <text class="t" x="870" y="378" text-anchor="middle">MATERIALS</text>
+      <text class="s" x="870" y="399" text-anchor="middle">stage 2 · plan + passages</text>
+      <text class="s" x="870" y="417" text-anchor="middle">→ handouts + exit ticket</text>
+
+      <path class="e" d="M220 92 L398 92" marker-end="url(#arr)"/>
+      <path class="e" d="M220 230 C310 230 310 115 398 115" marker-end="url(#arr)"/>
+      <path class="e" d="M220 115 C310 115 310 230 398 230" marker-end="url(#arr)"/>
+      <path class="e" d="M220 370 C310 370 310 250 398 250" marker-end="url(#arr)"/>
+      <path class="e" d="M220 250 C310 250 310 370 398 370" marker-end="url(#arr)"/>
+      <path class="e" d="M220 392 L398 392" marker-end="url(#arr)"/>
+
+      <path class="e" d="M600 100 C680 100 680 175 758 175" marker-end="url(#arr)"/>
+      <path class="e" d="M600 240 C680 240 680 200 758 200" marker-end="url(#arr)"/>
+      <path class="e" d="M600 380 C680 380 680 225 758 225" marker-end="url(#arr)"/>
+
+      <path class="e-dash" d="M870 250 L870 348" marker-end="url(#arr)"/>
+      <text class="lbl" x="880" y="295">separate HTTP call;</text>
+      <text class="lbl" x="880" y="311">browser sends the plan back</text>
+
+      <text class="lbl" x="500" y="462" text-anchor="middle">CK, PK and TK outputs also go straight to TPACK (lines omitted), so TPACK receives 6 hand-offs.</text>
+    </svg>
+    </div>
+    <figcaption>12 hand-offs per plan, each logged as an <code>agent.handoff</code> event, plus 1 more (TPACK → MATERIALS) in stage 2. The intersection agents depend only on layer 1, so they could run in parallel, but today they run one after another.</figcaption>
+  </figure>
+
+  <h3>What each agent is given and must return</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Agent</th><th>Prompt</th><th>Request inputs</th><th>Upstream</th><th>Required output</th></tr>
+    <tr><td><strong>CK</strong></td><td><code>ck_agent.md</code></td><td>grade, chapter, topic, duration, <em>passages</em></td><td>none</td><td><code>blocks[]</code> (core concepts, teaching sequence, misconceptions; each with <code>cited_chunk_ids</code>), <code>coverage_gaps</code></td></tr>
+    <tr><td><strong>PK</strong></td><td><code>pk_agent.md</code></td><td>grade, topic (as a label only), duration, class size, prior knowledge, method, format, assessment, language, accessibility, continuity, other requests</td><td>none</td><td><code>approach_summary</code>, <code>activity_sequence[]</code> (≤5 phases, minutes sum to duration, each with a <code>basis</code>), <code>assessment</code>, <code>feasibility_notes</code>, <code>missing_inputs</code></td></tr>
+    <tr><td><strong>TK</strong></td><td><code>tk_agent.md</code></td><td>class size, smart board, projector, board type, devices, internet, tools, comfort, physical tools, policy, home access, accessibility, budget</td><td>none</td><td><code>technology_profile[]</code>, <code>requested_tools_status[]</code> (available / unavailable / conditionally_available), <code>constraints_summary</code>, <code>missing_inputs</code></td></tr>
+    <tr><td><strong>PCK</strong></td><td><code>pck_agent.md</code></td><td>grade, topic, duration, class size, prior knowledge, method, Bloom's focus, <em>passages</em></td><td>ck, pk</td><td><code>phase_content_map[]</code>, <code>trade_offs[]</code>, <code>content_gaps</code></td></tr>
+    <tr><td><strong>TCK</strong></td><td><code>tck_agent.md</code></td><td>grade, chapter, topic, <em>passages</em></td><td>ck, tk</td><td><code>concept_representations[]</code> (with an offline <code>fallback</code>), <code>trade_offs[]</code></td></tr>
+    <tr><td><strong>TPK</strong></td><td><code>tpk_agent.md</code></td><td>grade, duration, method, classroom summary, comfort, accessibility</td><td>pk, tk</td><td><code>phase_technology_map[]</code>, <code>trade_offs[]</code></td></tr>
+    <tr><td><strong>TPACK</strong></td><td><code>tpack_agent.md</code></td><td>grade, chapter, topic, duration, method, Bloom's focus, classroom summary, tools, <em>passages</em></td><td>ck, pk, tk, pck, tck, tpk</td><td><code>LessonPlan</code> Pydantic schema (validated, 1 retry)</td></tr>
+    <tr><td><strong>MATERIALS</strong></td><td><code>tpack_materials_agent.md</code></td><td>grade, topic, Bloom's focus, <em>passages</em></td><td>tpack (the plan)</td><td><code>LessonMaterials</code> Pydantic schema (validated, 1 retry)</td></tr>
+  </table></div>
+
+  <h3>How domain separation is enforced</h3>
+  <ul>
+    <li><strong>By what each agent is given.</strong> <code>run_pipeline</code> builds a separate input dict for each agent. PK is never given the passages and TK is never given the topic, so they cannot leak content.</li>
+    <li><strong>By the prompts.</strong> PK must stay "content-free and tool-free", TK must be "descriptive, not prescriptive", TPK must "never state what the topic teaches", and PCK must "never name a tool". Each claim must cite a <code>basis</code>, the request values that justify it.</li>
+    <li><strong>A shared trade-off format.</strong> PCK, TCK and TPK each return <code>trade_offs: [{decision, options, chosen, given_up, because}]</code>, and TPACK returns <code>design_decisions: [{decision, chosen, rejected, because, agents}]</code>.</li>
+  </ul>
+
+  <h3>The trade-off log</h3>
+  <p>After each agent, <code>run._log_decisions(spec, items)</code> writes one <code>agent.decision</code> event per trade-off. The short fields go on the event and the full item goes in <code>detail</code>. It reads:</p>
+  <ul>
+    <li>PK's <code>feasibility_notes</code> (requested → alternative, because issue)</li>
+    <li>TK's requested tools whose status is not <code>available</code></li>
+    <li>PCK / TCK / TPK <code>trade_offs</code></li>
+    <li>TPACK's <code>design_decisions</code></li>
+  </ul>
+  <p><code>python trace.py --decisions</code> prints these per agent. The teacher sees TPACK's decisions under <em>Planning notes → Why the plan looks like this</em>.</p>
+</section>
+
+<!-- 5 -->
+<section id="runner">
+  <h2>How an agent runs</h2>
+  <p>Every agent is a frozen dataclass, defined in <code>agents.py</code>:</p>
+<pre><code>AgentSpec(name, prompt_path, required_keys=(), schema=None)
+
+CK    = AgentSpec("ck",  "prompts/ck_agent.md",  ("blocks", "coverage_gaps"))
+PCK   = AgentSpec("pck", "prompts/pck_agent.md", ("phase_content_map", "trade_offs"))
+TPACK = AgentSpec("tpack", "prompts/tpack_agent.md", schema=LessonPlan)</code></pre>
+  <p>All prompt files are read into memory <strong>once, at import</strong>. <code>run_agent(spec, inputs, upstream)</code> then does this:</p>
+  <ol>
+    <li><strong>Log hand-offs.</strong> For each upstream agent it writes an <code>agent.handoff</code> event (<code>from</code>, <code>to</code>, payload keys and size). The full payload goes in <code>detail</code>.</li>
+    <li><strong>Fill the template.</strong> Each upstream output is added as <code>{&lt;name&gt;_output}</code>, as pretty-printed JSON. Then <code>prompt.format(**fill)</code> runs. Prompts are Python <code>str.format</code> templates, so literal JSON braces in examples are written <code>{{ }}</code>. A placeholder with no value raises <code>KeyError</code>, which becomes <code>AgentOutputError</code> with <code>reason=prompt_placeholder</code>.</li>
+    <li><strong>Call the model</strong> (event <code>agent.start</code>).
+      <ul>
+        <li><em>Plain agents</em> (CK…TPK): <code>llm.call_agent()</code>, then check that every <code>required_keys</code> entry is present. Missing keys mean a 502 with no retry.</li>
+        <li><em>Schema agents</em> (TPACK, MATERIALS): <code>_call_with_schema()</code> calls the model and runs <code>schema.model_validate()</code>. If the JSON is invalid or the shape is wrong, it <strong>retries once</strong> with the validation errors added to the prompt under "Your previous answer was rejected". A second failure raises <code>AgentOutputError</code> (502).</li>
+      </ul></li>
+    <li><strong>Log the result</strong> (event <code>agent.end</code>, with duration, model and token counts). It returns <code>(output, {"agent", "ms", "status"})</code>, which feeds <code>agent_sequence</code> in the response.</li>
+  </ol>
+  <div class="note">The intersection agents' outputs are only checked for the required <em>top-level keys</em>. Their inner shape isn't validated. TPACK and MATERIALS are the only fully schema-validated outputs.</div>
+</section>
+
+<!-- 6 -->
+<section id="llm">
+  <h2>Talking to Gemini</h2>
+  <p><code>llm.py</code> uses the official <code>openai</code> Python client pointed at <code>https://generativelanguage.googleapis.com/v1beta/openai/</code>. Each call is one user message with <code>temperature=0.3</code> and <code>response_format={"type": "json_object"}</code>. The client is created lazily, so a missing <code>GEMINI_API_KEY</code> fails a request (502) rather than server start-up. Its built-in retries are off (<code>max_retries=0</code>) so that every retry is logged here.</p>
+
+  <h3>Retry and fallback</h3>
+  <p>Models are tried in order: <code>GEMINI_MODEL</code> (default <code>gemini-3.6-flash</code>), then each of <code>GEMINI_FALLBACK_MODELS</code>. Each model gets up to 4 attempts, waiting 0 s, 2 s, 6 s and 12 s before them.</p>
+  <div class="table-wrap"><table>
+    <tr><th>What went wrong</th><th>What happens</th></tr>
+    <tr><td>401 / bad key</td><td>Fail now: <code>LLMError</code> "rejected the server's credentials"</td></tr>
+    <tr><td>404 model not found</td><td>Skip to the next model at once</td></tr>
+    <tr><td>Timeout (60 s)</td><td>Skip to the next model (waiting again rarely helps)</td></tr>
+    <tr><td>429 rate limit</td><td>Skip to the next model (quotas are per model)</td></tr>
+    <tr><td>500 / 502 / 503 / 504 / 529</td><td>Retry the same model after the next wait</td></tr>
+    <tr><td>Connection error</td><td>Retry the same model after the next wait</td></tr>
+    <tr><td>Any other 4xx</td><td>Fail now</td></tr>
+    <tr><td>All models exhausted</td><td><code>llm_exhausted</code> is logged, and the teacher sees a friendly message based on the last reason</td></tr>
+  </table></div>
+  <p>Once a reply arrives, the code strips any <code>```</code> fences the model added, parses the JSON and requires a JSON <em>object</em>. Otherwise it raises <code>AgentOutputError</code>, which schema agents treat as a reason to retry.</p>
+  <div class="warn">The worst case is slow. 7 sequential calls, each of which can retry and fall back, sit inside one synchronous HTTP request. Expect roughly 1–3 minutes for a plan on a healthy key.</div>
+</section>
+
+<!-- 7 -->
+<section id="post">
+  <h2>Post-processing the plan</h2>
+  <p>After TPACK returns, <code>run_pipeline</code> cleans up the plan before trusting it:</p>
+  <ol>
+    <li><strong>Remove made-up citations.</strong> <code>_strip_invalid_citations</code> keeps only <code>phases[].sources</code> ids that were actually retrieved, and removes duplicates. Anything dropped is counted in <code>notes.removed_references</code> and logged as <code>citation.invalid</code>.</li>
+    <li><strong>Remove ids from the prose.</strong> <code>_scrub_ids_from_text</code> walks the whole plan and deletes chunk-id-looking strings (with brackets or parentheses) from every text field except <code>sources</code>. List items that were only an id are removed.</li>
+    <li><strong>Check timings.</strong> If the phase minutes don't add up to the requested duration, a warning is added (not an error).</li>
+    <li><strong>Merge content gaps.</strong> CK's <code>coverage_gaps</code> and PCK's <code>content_gaps</code> are added to <code>not_covered</code> without duplicates, capped at 20.</li>
+    <li><strong>Re-validate.</strong> The edited plan goes through <code>LessonPlan.model_validate()</code> again, so post-processing can never produce a 500. A failure becomes a 502 with <code>reason=postprocess_invalid</code>.</li>
+    <li><strong>Build missing-detail questions.</strong> PK's and TK's <code>missing_inputs</code> names are normalised and looked up in <code>MISSING_DETAIL_QUESTIONS</code>, which maps each to a wizard field and a plain question. Fields the teacher already filled are skipped (the agent was wrong), and each field is asked about once. Unknown names become a generic question with <code>field: null</code>.</li>
+  </ol>
+  <h3>Response body</h3>
+<pre><code>{
+  "trace_id": "…",
+  "lesson": { overview, phases[], not_covered[], design_decisions[], missing_details[] },
+  "notes": {
+    "approach_summary", "pk_feasibility": [], "tk_tool_status": [],
+    "trade_offs": { "pck": [], "tck": [], "tpk": [] },
+    "removed_references": 0
+  },
+  "warnings": [],
+  "agent_sequence": [ {"seq": 1, "agent": "ck", "ms": 4210, "status": "ok"}, … ],
+  "_retrieved_ids": ["g7_ch01_s1.2_000", …]
+}</code></pre>
+</section>
+
+<!-- 8 -->
+<section id="materials">
+  <h2>Stage 2: handouts and exit ticket</h2>
+  <p>As soon as the plan is shown, the browser calls <code>POST /api/materials</code> with <code>{request, plan}</code> (the original request plus the plan without <code>missing_details</code>) and the same <code>X-Trace-Id</code>.</p>
+  <ol>
+    <li>Pydantic validates both parts. The plan must be a valid <code>LessonPlan</code>, whose size limits keep the echoed plan small.</li>
+    <li><code>run_materials</code> runs <code>check_safety</code> again and repeats retrieval locally (no LLM call). The client might have sent a modified request.</li>
+    <li>One MATERIALS agent call with <code>upstream={"tpack": plan}</code>, followed by id scrubbing and <code>LessonMaterials</code> validation.</li>
+  </ol>
+  <p><strong>Why a separate call?</strong> If Gemini fails here, the teacher still has the plan, and the Handouts and Quiz tabs show a <em>Retry</em> button. <code>LessonMaterials</code> requires every quiz <code>answer</code> to match one of its <code>options</code> exactly and normalises Bloom's labels (<code>"analyse"</code> → <code>"Analyze"</code>).</p>
+</section>
+
+<!-- 9 -->
+<section id="guardrails">
+  <h2>Guardrails</h2>
+  <p>A request passes four layers before any tokens are spent:</p>
+  <div class="flow">
+    <div class="step"><b>1. Browser</b><span>Input attributes (<code>required</code>, <code>min</code>/<code>max</code>, <code>maxlength</code>) plus <code>crossFieldErrors()</code> mirror the server rules.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><b>2. Pydantic</b><span>Types, enums, ranges, no unknown fields, text sanitising.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><b>3. Safety + consistency</b><span>Injection / unsafe patterns, contradictory settings, chapter loaded.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><b>4. Relevance</b><span>Closest chunk distance ≤ 0.80 or the topic is rejected as off-chapter.</span></div>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Check</th><th>Rule</th><th>Result</th></tr>
+    <tr><td>Prompt injection</td><td>Regexes such as "ignore previous instructions", "system prompt", "you are now", role tags and code fences</td><td>422 <code>unsafe_topic</code></td></tr>
+    <tr><td>Unsafe content</td><td>Narrow categories: violence/weapons, sexual, self-harm, hate, drugs. Kept narrow on purpose so that words like "shoot" or "sexual reproduction" still pass.</td><td>422 <code>unsafe_topic</code>. Only the category is logged, never the matched text.</td></tr>
+    <tr><td>Contradiction</td><td>1:1 or lab setup with no student devices; projector setup with both projector and smart board explicitly "no"; unknown chapter</td><td>422 <code>incomplete_constraints</code></td></tr>
+    <tr><td>Soft conflict</td><td>Tools listed but no internet</td><td>Warning in the response</td></tr>
+    <tr><td>Off-chapter topic</td><td>Best distance &gt; <code>RELEVANCE_MAX_DISTANCE</code></td><td>422 <code>topic_not_in_source</code></td></tr>
+    <tr><td>Hallucinated citation</td><td>Cited id not among the retrieved chunks</td><td>Silently removed and counted</td></tr>
+  </table></div>
+</section>
+
+<!-- 10 -->
+<section id="data">
+  <h2>Textbook data pipeline</h2>
+  <p>This runs offline, before the server starts. It turns the raw PDF text of the whole NCERT Science Class 7 book (2018-19 print, 18 chapters) into a searchable vector index.</p>
+  <div class="flow">
+    <div class="step"><b>data/raw/ncert_science_class7.txt</b><span>raw PDF-to-text dump</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><b>prepare_textbook.py</b><span>remove headers, footers, captions, exercises and the "Boojho/Paheli" speech bubbles; split on chapter titles; rejoin wrapped lines</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><b>data/chapter01–18.txt</b><span><code>## X.Y Title</code> headings, blank-line paragraphs</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><b>ingest.py</b><span>split by section → 1000-char chunks, 150 overlap → drop &lt;100 chars → MiniLM embed</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><b>chroma_store/</b><span>collection <code>ncert_g7_biology</code>, cosine distance</span></div>
+  </div>
+
+  <h3>Chunk ids</h3>
+  <div class="chunk-id" aria-label="g7_ch01_s1.2_000">
+    <span class="k">g7</span><span>_</span><span class="k">ch01</span><span>_</span><span class="k">s1.2</span><span>_</span><span class="k">000</span>
+  </div>
+  <p class="chunk-legend">grade 7 · chapter 01 · section 1.2 · 1st chunk kept in that section. Text before a chapter's first numbered section goes under section <code>X.0 Introduction</code>.</p>
+  <p>The ids are built only from the chapter number, the section number and the chunk's position in that section, and the collection is deleted and rebuilt on every run. So the same text always gives the same ids, and citations in old logs still resolve. Each chunk's metadata holds <code>grade</code>, <code>chapter_num</code>, <code>chapter</code>, <code>section</code> and <code>source</code>. The <code>chapter_num</code> is what retrieval filters on.</p>
+  <div class="note"><code>retrieval.py</code> opens the collection lazily on the first request. A missing index returns 503 <code>index_unavailable</code> instead of stopping the server from importing.</div>
+</section>
+
+<!-- 11 -->
+<section id="schemas">
+  <h2>Data contracts</h2>
+  <p><code>lesson_schema.py</code> is shared by the TPACK and MATERIALS prompts (their JSON examples), <code>api.py</code>'s response models and the Result screen. Change them together. Extra fields from the model are ignored rather than rejected.</p>
+<div class="tree">LessonPlan
+├─ overview
+│  ├─ title                 str ≤200
+│  ├─ duration_min          int 1–240
+│  ├─ objectives[]          1–8 lines
+│  ├─ materials[]           ≤30
+│  └─ prep_before_class[]   ≤20
+├─ phases[]                 1–10
+│  ├─ name, minutes (1–180)
+│  ├─ teacher_steps[]       1–15  <span class="c"># imperative steps</span>
+│  ├─ student_actions[]     ≤15
+│  ├─ board_notes           str
+│  ├─ questions[]           ≤10 {q, expected_answer}
+│  ├─ misconceptions[]      ≤10
+│  ├─ if_tech_missing       str   <span class="c"># offline fallback</span>
+│  └─ sources[]             ≤10 chunk ids  <span class="c"># filtered after the call</span>
+├─ not_covered[]            ≤20
+└─ design_decisions[]       ≤12 {decision, chosen, rejected, because[], agents[]}
+
+LessonMaterials
+├─ handouts[]               1–6 {title, for_phase, instructions, items[1–15]}
+└─ exit_ticket[]            3–8
+   └─ {q, type:"mcq", options[2–6, all different], answer ∈ options, why, bloom}</div>
+</section>
+
+<!-- 12 -->
+<section id="errors">
+  <h2>Errors</h2>
+  <p>Every failure is an <code>AppError</code> subclass (<code>errors.py</code>) with a <code>code</code> and an <code>http_status</code>. <code>api.py</code> turns them all into one JSON shape:</p>
+<pre><code>{"error": {"code": "unsafe_topic",
+           "message": "Text that is safe to show a teacher",
+           "details": [{"field": "content.topic", "message": "…"}],
+           "trace_id": "…"}}</code></pre>
+  <div class="table-wrap"><table>
+    <tr><th>Code</th><th>HTTP</th><th>Raised by</th></tr>
+    <tr><td><code>invalid_input</code></td><td>422</td><td>Pydantic (via <code>request_validation_handler</code>, with friendly messages), malformed chunk id</td></tr>
+    <tr><td><code>unsafe_topic</code></td><td>422</td><td><code>check_safety</code></td></tr>
+    <tr><td><code>incomplete_constraints</code></td><td>422</td><td><code>check_consistency</code></td></tr>
+    <tr><td><code>topic_not_in_source</code></td><td>422</td><td><code>check_relevance</code></td></tr>
+    <tr><td><code>not_found</code></td><td>404</td><td>Unknown chunk id or <code>/api/*</code> path</td></tr>
+    <tr><td><code>llm_failure</code></td><td>502</td><td><code>llm.py</code> (auth, exhausted retries, missing key)</td></tr>
+    <tr><td><code>agent_output_invalid</code></td><td>502</td><td>Bad JSON, missing keys, schema failure twice, missing prompt placeholder, post-processing failure</td></tr>
+    <tr><td><code>index_unavailable</code></td><td>503</td><td><code>retrieval.py</code> (no index / query failed)</td></tr>
+    <tr><td><code>internal_error</code></td><td>500</td><td>Anything else, caught by the middleware. The traceback is only logged.</td></tr>
+  </table></div>
+  <p><code>details[].field</code> uses the same dotted names as the wizard's <code>data-field</code> attributes. That lets <code>applyServerFieldErrors()</code> in the browser highlight the exact input and jump to its wizard step.</p>
+</section>
+
+<!-- 13 -->
+<section id="logging">
+  <h2>Logging &amp; tracing</h2>
+  <p>Everything goes through one function: <code>log_event(event, actor, level=INFO, detail=None, **fields)</code>. It adds <code>trace_id</code> and an increasing <code>seq</code> from the request context and sends the record to three handlers:</p>
+  <div class="table-wrap"><table>
+    <tr><th>Handler</th><th>Output</th><th>Contains <code>detail</code> payloads?</th></tr>
+    <tr><td>JSON lines (rotating, 5 MB × 5)</td><td><code>logs/interactions.jsonl</code></td><td>Only if <code>LOG_FULL_PAYLOADS = True</code></td></tr>
+    <tr><td>Console</td><td>stderr, one compact line per event</td><td>Never</td></tr>
+    <tr><td>Session file (one per trace)</td><td><code>logs/sessions/&lt;YYYYMMDD-HHMMSS&gt;_&lt;trace&gt;.log</code></td><td>Yes, if <code>LOG_SESSION_PAYLOADS = True</code> (the default)</td></tr>
+  </table></div>
+  <p><strong>Rule:</strong> large things (agent inputs and outputs, hand-off contents, retrieved passages, prompts) go in <code>detail={…}</code>, never in <code>**fields</code>. The session file is the readable record of one lesson: the plan request, then the materials request and any citation clicks, all under the same trace id.</p>
+
+  <h3>Event types</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Actor</th><th>Events</th></tr>
+    <tr><td><code>human</code></td><td><code>human.request</code>, <code>human.lesson_submitted</code>, <code>human.materials_requested</code>, <code>human.citation_view</code></td></tr>
+    <tr><td><code>api</code></td><td><code>human.response</code>, <code>api.error</code>, <code>pipeline.done</code>, <code>materials.done</code></td></tr>
+    <tr><td><code>validator</code></td><td><code>validation.passed</code>, <code>validation.rejected</code></td></tr>
+    <tr><td><code>retriever</code></td><td><code>retrieval.done</code>, <code>retrieval.error</code></td></tr>
+    <tr><td><code>agent:&lt;name&gt;</code></td><td><code>agent.handoff</code>, <code>agent.start</code>, <code>llm.retry</code>, <code>llm.response</code>, <code>agent.end</code>, <code>agent.error</code>, <code>agent.decision</code>, <code>citation.invalid</code></td></tr>
+  </table></div>
+  <h3>Reading traces</h3>
+<pre><code>python trace.py --last            # every event of the latest trace, in order
+python trace.py --list            # last 20 trace ids with path and status
+python trace.py &lt;trace_id&gt;        # one trace (a prefix is enough)
+python trace.py --decisions [id]  # who received what, and each agent's trade-offs</code></pre>
+</section>
+
+<!-- 14 -->
+<section id="frontend">
+  <h2>Frontend</h2>
+  <p><code>static/index.html</code> is one file containing the CSS, the markup for 7 screens and a single plain JavaScript function wrapper. FastAPI serves it with a <code>StaticFiles</code> mount at <code>/</code>, which <strong>must be the last route</strong> registered, because it catches every path.</p>
+
+  <div class="flow">
+    <div class="step"><b>0 Welcome</b></div><div class="arrow">→</div>
+    <div class="step"><b>1 Content</b><span>chapter, topic, duration</span></div><div class="arrow">→</div>
+    <div class="step"><b>2 Learners &amp; pedagogy</b><span>class size, prior knowledge, method, Bloom's…</span></div><div class="arrow">→</div>
+    <div class="step"><b>3 Technology</b><span>setup, devices, internet, tools…</span></div><div class="arrow">→</div>
+    <div class="step"><b>4 Review</b></div><div class="arrow">→</div>
+    <div class="step"><b>5 Loading</b></div><div class="arrow">→</div>
+    <div class="step"><b>6 Result</b><span>Plan · Handouts · Quiz</span></div>
+  </div>
+
+  <h3>Key mechanisms</h3>
+  <ul>
+    <li><strong>Field naming does the wiring.</strong> <code>data-field="learners.class_size"</code> sets the JSON path in <code>buildPayload()</code>, the error box id (<code>e-learners.class_size</code>), where server errors land, and the target for "Regenerate with this".</li>
+    <li><strong>Safe rendering.</strong> All server and model text goes through the <code>el()</code> helper, which uses <code>textContent</code>. The code never writes server data with <code>innerHTML</code>, so model output can't inject HTML.</li>
+    <li><strong>Citations.</strong> <code>sourcesRow()</code> groups a phase's <code>sources</code> by section into "Textbook §1.2" chips. Clicking one fetches <code>GET /api/chunks/{id}</code> for each id, sending the lesson's <code>X-Trace-Id</code> so the click is logged under that lesson, and shows the original passage.</li>
+    <li><strong>Missing details.</strong> Each <code>missing_details</code> item is shown with a copy of the matching wizard control. Answering it writes the value back into the wizard and calls <code>generate()</code> again (the full 7-agent run). Answers without a matching field are added to "Anything else".</li>
+    <li><strong>Race guard.</strong> <code>loadMaterials()</code> increments <code>state.materialsToken</code>, so a slow stage-2 response for an old lesson is ignored if the teacher has regenerated or started over.</li>
+    <li><strong>Teacher pack.</strong> "Download teacher pack" fills <code>#print-pack</code> and calls <code>window.print()</code>. Print-only CSS shows the plan, one page per handout, a student quiz and a separate answer key. There is no server-side PDF. Ctrl+P builds the same pack through <code>beforeprint</code>.</li>
+  </ul>
+</section>
+
+<!-- 15 -->
+<section id="api">
+  <h2>API reference</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Route</th><th>Body / params</th><th>Does</th></tr>
+    <tr><td><code>POST /api/generate</code></td><td><code>{content, learners, pedagogy, technology, other_requests?}</code></td><td>Stage 1: validation → retrieval → 7 agents → <code>GenerateResponse</code></td></tr>
+    <tr><td><code>POST /api/materials</code></td><td><code>{request, plan}</code></td><td>Stage 2: 1 agent → <code>{trace_id, materials, agent_sequence}</code></td></tr>
+    <tr><td><code>GET /api/chunks/{chunk_id}</code></td><td>id like <code>g7_ch01_s1.2_000</code></td><td>Look up one chunk by id (no similarity search). 422 if malformed, 404 if unknown.</td></tr>
+    <tr><td><code>GET /</code></td><td></td><td>The wizard (static mount, catch-all)</td></tr>
+  </table></div>
+  <h3>Minimal request</h3>
+<pre><code>{
+  "content":    {"topic": "photosynthesis", "duration": 45, "chapter_num": 1},
+  "learners":   {"class_size": 40, "prior_knowledge": "new"},
+  "pedagogy":   {"method": "5E", "blooms_focus": "understand"},
+  "technology": {"infrastructure": "projector", "student_devices": "none",
+                 "internet_access": "reliable"}
+}</code></pre>
+  <p>Enums: <code>method</code> ∈ 5E, inquiry, direct, socratic · <code>blooms_focus</code> ∈ understand, analyze, create · <code>infrastructure</code> ∈ projector, 1to1, lab, lowtech · <code>student_devices</code> ∈ none, shared, 1to1 · <code>internet_access</code> ∈ reliable, unreliable, none. <code>run.py</code> converts these to readable labels (<code>METHOD_LABELS</code> etc.) before they reach a prompt, and fills unset optional fields with <code>"Not specified"</code>.</p>
+</section>
+
+<!-- 16 -->
+<section id="config">
+  <h2>Configuration</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Setting</th><th>Value</th><th>Effect</th></tr>
+    <tr><td><code>GEMINI_API_KEY</code> (.env)</td><td>required</td><td>Without it every generate call returns 502</td></tr>
+    <tr><td><code>GEMINI_MODEL</code> (.env)</td><td><code>gemini-3.6-flash</code></td><td>Primary model</td></tr>
+    <tr><td><code>GEMINI_FALLBACK_MODELS</code> (.env)</td><td><code>gemini-3.5-flash, gemini-flash-latest, gemini-3.1-flash-lite</code></td><td>Tried in order</td></tr>
+    <tr><td><code>RETRIEVAL_K</code></td><td>4</td><td>Passages per request</td></tr>
+    <tr><td><code>RELEVANCE_MAX_DISTANCE</code></td><td>0.80</td><td>Off-topic cutoff (measurements are in a comment in config.py)</td></tr>
+    <tr><td><code>CHUNK_SIZE</code> / <code>CHUNK_OVERLAP</code></td><td>1000 / 150</td><td>Requires re-ingest when changed</td></tr>
+    <tr><td><code>LLM_TIMEOUT_S</code></td><td>60</td><td>Per-call timeout</td></tr>
+    <tr><td><code>LLM_RETRY_BACKOFF_S</code></td><td>(2, 6, 12)</td><td>Waits before retries on the same model</td></tr>
+    <tr><td><code>TOPIC_*</code>, <code>DURATION_*</code>, <code>CLASS_SIZE_*</code>, <code>FREE_TEXT_MAX</code></td><td>2–120 chars, 10–180 min, 1–200, 300 chars</td><td>Input limits, mirrored on the wizard inputs</td></tr>
+    <tr><td><code>LOG_FULL_PAYLOADS</code></td><td>False</td><td>Put prompts and raw replies in the JSONL log</td></tr>
+    <tr><td><code>LOG_SESSION_FILES</code> / <code>_PAYLOADS</code> / <code>_MAX_FILES</code></td><td>True / True / 500</td><td>Per-trace readable logs</td></tr>
+    <tr><td><code>CHAPTERS</code></td><td>18 entries</td><td>Chapter number and title. Must match the book print and the wizard's chapter list.</td></tr>
+  </table></div>
+</section>
+
+<!-- 17 -->
+<section id="tests">
+  <h2>Tests</h2>
+  <p>88 tests, about 1.5 s, needing <strong>no API key and no index</strong>. <code>tests/conftest.py</code> points <code>config.LOG_DIR</code> at a temp directory <em>before</em> importing <code>api</code>, then provides:</p>
+  <ul>
+    <li><code>fake_backends</code>: monkeypatches <code>llm.call_agent</code> (canned output per agent actor) and <code>run.retrieve</code> (two fake chunks), and records the order agents were called in.</li>
+    <li><code>events</code>: captures every structured log event so tests can assert on hand-offs, decisions and <code>seq</code> ordering.</li>
+    <li><code>client</code>: a FastAPI <code>TestClient</code> that turns uncaught exceptions into 500 responses rather than raising them.</li>
+  </ul>
+  <div class="table-wrap"><table>
+    <tr><th>File</th><th>Covers</th></tr>
+    <tr><td><code>test_api.py</code></td><td>Error envelope for each failure type, trace id reuse, static mount still served</td></tr>
+    <tr><td><code>test_pipeline.py</code></td><td>Agent order, the 12 hand-offs, decision logging, seq ordering, citation stripping, all prompt placeholders filled</td></tr>
+    <tr><td><code>test_lesson_output.py</code></td><td>Schema rules, retry-once behaviour, materials stage, missing-detail mapping</td></tr>
+    <tr><td><code>test_llm.py</code></td><td>Retry, fallback and rate-limit behaviour with a scripted fake client</td></tr>
+    <tr><td><code>test_validation.py</code></td><td>Sanitising, injection and unsafe patterns, legitimate biology words, consistency, relevance threshold</td></tr>
+    <tr><td><code>test_session_log.py</code></td><td>Per-trace session files, payload switches</td></tr>
+  </table></div>
+<pre><code>.venv\Scripts\python -m pytest -q</code></pre>
+</section>
+
+<!-- 18 -->
+<section id="files">
+  <h2>File map</h2>
+<div class="tree">api.py                 <span class="c"># FastAPI app: request models, error handlers, trace middleware, routes, static mount</span>
+run.py                 <span class="c"># run_pipeline / run_materials, enum→label maps, post-processing, decision logging</span>
+agents.py              <span class="c"># AgentSpec registry, run_agent, schema validate + retry</span>
+llm.py                 <span class="c"># Gemini client, retry / fallback, JSON parsing</span>
+lesson_schema.py       <span class="c"># LessonPlan, LessonMaterials (shared contract)</span>
+validation.py          <span class="c"># sanitize_text, check_safety, check_consistency, check_relevance</span>
+retrieval.py           <span class="c"># lazy Chroma collection, retrieve, get_chunk, format_chunks</span>
+errors.py              <span class="c"># AppError hierarchy (code + http_status)</span>
+logging_setup.py       <span class="c"># log_event, trace context, JSONL / console / session handlers</span>
+config.py              <span class="c"># all constants: chapters, limits, thresholds, patterns, logging</span>
+trace.py               <span class="c"># CLI to read traces from the JSONL log</span>
+prepare_textbook.py    <span class="c"># raw book text → data/chapterNN.txt</span>
+ingest.py              <span class="c"># data/*.txt → chunks → ChromaDB</span>
+prompts/
+  ck_agent.md  pk_agent.md  tk_agent.md               <span class="c"># foundational</span>
+  pck_agent.md tck_agent.md tpk_agent.md              <span class="c"># intersections</span>
+  tpack_agent.md  tpack_materials_agent.md            <span class="c"># integration, stage 2</span>
+static/index.html      <span class="c"># the whole frontend</span>
+data/raw/…, data/chapter01–18.txt
+chroma_store/  logs/   <span class="c"># generated, git-ignored</span>
+tests/                 <span class="c"># 88 tests, fakes for LLM + retrieval</span></div>
+</section>
+
+<!-- 19 -->
+<section id="caveats">
+  <h2>Known gaps</h2>
+  <ul>
+    <li><strong>Latency.</strong> Seven Gemini calls run one after another inside one synchronous request. PCK, TCK and TPK are independent and could run in parallel. The UI still says "usually under a minute".</li>
+    <li><strong>Out-of-date text.</strong> The welcome and loading screens and the README still describe 4 agents. The README's troubleshooting snippet uses <code>from llm import client</code>, but the module only has <code>get_client()</code>.</li>
+    <li><strong>Trade-offs only partly shown.</strong> <code>notes.trade_offs</code> (PCK, TCK, TPK) is returned but not rendered, and <code>design_decisions</code> is not in the printed teacher pack.</li>
+    <li><strong>Loose checks on intersection outputs.</strong> PCK, TCK and TPK are checked only for top-level keys. If their inner shape is malformed, it goes straight into the TPACK prompt.</li>
+    <li><strong>Relevance is approximate.</strong> Some off-topic queries still pass the threshold (for example "algebra" in chapter 13 at 0.78). CK and PCK content gaps are the second line of defence.</li>
+    <li><strong>Misleading collection name.</strong> The collection is called <code>ncert_g7_biology</code>, but it now holds all 18 chapters, including physics and chemistry ones.</li>
+    <li><strong>No auth and no rate limiting.</strong> As intended for a proof of concept, so anyone who can reach the server can spend the Gemini quota.</li>
+  </ul>
+</section>
+
+<p style="color:var(--muted);font-size:0.85rem;margin-top:48px">Written from the source at commit <code>d572775</code> ("Add PCK, TCK and TPK agents and log agent trade-offs").</p>
+</main>
+</div>
+</body>
+</html>

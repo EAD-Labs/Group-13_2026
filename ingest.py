@@ -12,7 +12,7 @@ import os
 import re
 
 import chromadb
-from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 import config
@@ -45,9 +45,7 @@ def split_sections(text):
 
 def main():
     client = chromadb.PersistentClient(path=config.CHROMA_PATH)
-    embedding_fn = SentenceTransformerEmbeddingFunction(
-        model_name=config.EMBEDDING_MODEL
-    )
+    embedding_fn = DefaultEmbeddingFunction()
 
     # Rebuild from scratch so re-running never duplicates or orphans chunks.
     try:

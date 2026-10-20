@@ -77,6 +77,12 @@ ONLY ids you may put in `sources`, and the only content you may teach.
 {tpk_output}
 ```
 
+## Content guidelines
+
+These apply to everything you write. If anything below would break them, follow the guidelines instead.
+
+{guidelines}
+
 ## Rules
 
 1. **Phases.** Build one phase per phase of the PK agent's

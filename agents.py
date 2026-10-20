@@ -4,6 +4,9 @@ Each agent is one prompt template plus either the keys its JSON output must
 contain or a Pydantic schema it must match. run_agent() logs the agent's
 lifecycle and every hand-off it receives from an upstream agent, which is how
 agent-to-agent interaction shows up in the log.
+
+Every prompt's `{guidelines}` placeholder is filled with prompts/guidelines.md,
+so all agents work to the same content rules.
 """
 
 import json
@@ -18,7 +21,7 @@ from pydantic import ValidationError
 import config
 import llm
 from errors import AgentOutputError
-from lesson_schema import LessonMaterials, LessonPlan
+from lesson_schema import InputScreen, LessonMaterials, LessonPlan, OutputScreen
 from logging_setup import log_event
 
 
@@ -54,14 +57,31 @@ TCK = AgentSpec("tck", "prompts/tck_agent.md", ("concept_representations", "trad
 TPK = AgentSpec("tpk", "prompts/tpk_agent.md", ("phase_technology_map", "trade_offs"))
 TPACK = AgentSpec("tpack", "prompts/tpack_agent.md", schema=LessonPlan)
 MATERIALS = AgentSpec("materials", "prompts/tpack_materials_agent.md", schema=LessonMaterials)
+# Content screening (screening.py): the teacher's input before any lesson
+# agent runs, and each generated plan / materials before the teacher sees it.
+INPUT_SCREEN = AgentSpec("input_screen", "prompts/input_screen_agent.md", schema=InputScreen)
+OUTPUT_SCREEN = AgentSpec("output_screen", "prompts/output_screen_agent.md", schema=OutputScreen)
 
-ALL_AGENTS = (CK, PK, TK, PCK, TCK, TPK, TPACK, MATERIALS)
+ALL_AGENTS = (CK, PK, TK, PCK, TCK, TPK, TPACK, MATERIALS, INPUT_SCREEN, OUTPUT_SCREEN)
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PROMPTS = {}
 for _spec in ALL_AGENTS:
     with open(os.path.join(_HERE, _spec.prompt_path), encoding="utf-8") as _f:
         _PROMPTS[_spec.name] = _f.read()
+
+
+def _load_guidelines():
+    """prompts/guidelines.md without its title, its `##` headings demoted to
+    `###` so they nest under each prompt's "## Content guidelines" section."""
+    with open(os.path.join(_HERE, "prompts", "guidelines.md"), encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    if lines and lines[0].startswith("# "):
+        lines = lines[1:]
+    return "\n".join("#" + line if line.startswith("## ") else line for line in lines).strip()
+
+
+GUIDELINES = _load_guidelines()
 
 _RETRY_NOTE = """
 
@@ -75,12 +95,14 @@ Return the complete corrected JSON object, in exactly the required shape, and no
 """
 
 
-def run_agent(spec, inputs, upstream=None):
+def run_agent(spec, inputs, upstream=None, note=None):
     """Run one agent.
 
-    `inputs` fills the prompt's placeholders. `upstream` maps an agent name to
-    that agent's output; each one is logged as a hand-off and injected into
-    the prompt as `{<name>_output}` (pretty-printed JSON).
+    `inputs` fills the prompt's placeholders (`{guidelines}` is always
+    filled). `upstream` maps an agent name to that agent's output; each one is
+    logged as a hand-off and injected into the prompt as `{<name>_output}`
+    (pretty-printed JSON). `note` is appended to the prompt, e.g. the content
+    review's findings when the agent has to rewrite its answer.
 
     Returns (output_dict, step) where step is {"agent", "ms", "status"} for
     the response's agent_sequence. With a schema, output_dict is the
@@ -98,7 +120,7 @@ def run_agent(spec, inputs, upstream=None):
             detail={"payload": output},
         )
 
-    fill = dict(inputs)
+    fill = {"guidelines": GUIDELINES, **inputs}
     for source, output in upstream.items():
         fill[f"{source}_output"] = json.dumps(output, ensure_ascii=False, indent=2)
 
@@ -115,8 +137,12 @@ def run_agent(spec, inputs, upstream=None):
         raise AgentOutputError(
             f"The {spec.name.upper()} agent could not be prepared (prompt placeholder {e} has no value)."
         ) from e
+    if note:
+        prompt += note
 
     detail = {"inputs": inputs}
+    if note:
+        detail["note"] = note
     if config.LOG_FULL_PAYLOADS:
         detail["prompt"] = prompt
     log_event(
@@ -124,6 +150,7 @@ def run_agent(spec, inputs, upstream=None):
         spec.actor,
         prompt_chars=len(prompt),
         upstream=[f"agent:{s}" for s in upstream],
+        **({"rewrite": True} if note else {}),
         detail=detail,
     )
 

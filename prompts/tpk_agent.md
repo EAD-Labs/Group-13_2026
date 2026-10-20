@@ -33,6 +33,12 @@ technology forces the pedagogy to change.
 {tk_output}
 ```
 
+## Content guidelines
+
+These apply to everything you write. If anything below would break them, follow the guidelines instead.
+
+{guidelines}
+
 ## Rules
 
 1. **One entry per PK phase.** For each phase in the PK agent's

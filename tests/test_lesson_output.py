@@ -179,9 +179,10 @@ def test_materials_happy_path(client, fake_backends, events):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["materials"]["handouts"][0]["for_phase"] == "Explore"
-    assert fake_backends == ["agent:materials"]  # the only LLM call
+    assert fake_backends == ["agent:materials", "agent:output_screen"]  # the only LLM calls
     handoffs = [(e["from"], e["to"]) for e in events if e["event"] == "agent.handoff"]
-    assert handoffs == [("agent:tpack", "agent:materials")]
+    assert handoffs == [("agent:tpack", "agent:materials"), ("agent:materials", "agent:output_screen")]
+    assert body["warnings"] == []
 
 
 def test_quiz_answers_are_always_options(client, fake_backends):

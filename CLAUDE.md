@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AgentTPACK is a proof-of-concept of a multi-agent lesson-planning system built on the TPACK framework (Content, Pedagogical, and Technological Knowledge).
 
-A teacher fills in a wizard in the browser. The backend validates the request, retrieves NCERT Grade 7 biology chunks from ChromaDB, and runs seven Gemini agents in sequence. It returns a JSON lesson plan whose blocks cite chunk ids, and the frontend resolves each citation back to the source paragraph.
+A teacher fills in a wizard in the browser. The backend validates the request, retrieves NCERT Grade 7 biology chunks from ChromaDB, screens the request against a content policy with Gemini, runs seven Gemini agents in sequence, and screens the generated plan again. It returns a JSON lesson plan whose blocks cite chunk ids, and the frontend resolves each citation back to the source paragraph.
 
 The stack is deliberately minimal: no LangChain chains, retrievers or vectorstores, no LangGraph, no database besides embedded ChromaDB and JSONL log files, no frontend build step, and no auth. Keep it that way unless asked otherwise.
 
@@ -35,15 +35,20 @@ A request to `POST /api/generate` flows through:
 2. `run.run_pipeline`
 3. `validation.check_safety` / `check_consistency`
 4. `retrieval.retrieve`, then `validation.check_relevance`
-5. the agents via `agents.run_agent`: **CK → PK → TK → PCK → TCK → TPK → TPACK**, where TPACK returns a `LessonPlan`
-6. post-processing: citation stripping on `phases[].sources`, scrubbing chunk ids from text, merging CK gaps into `not_covered`, and building `missing_details`
+5. `screening.screen_input`: the `INPUT_SCREEN` agent checks every free-text field against `prompts/guidelines.md`; anything flagged raises `ContentFlaggedError` (422 `content_flagged`, one `details[]` entry per field) before any lesson agent runs
+6. the agents via `agents.run_agent`: **CK → PK → TK → PCK → TCK → TPK → TPACK**, where TPACK returns a `LessonPlan`
+7. `screening.screen_output`: the `OUTPUT_SCREEN` agent reviews the plan; if flagged, TPACK rewrites once with the findings (`run_agent(..., note=)`); if still flagged, the flagged items are removed (`screening.remove_paths`) and `REMOVED_WARNING` is added to `warnings`; if removal leaves an invalid plan, 502
+8. post-processing: citation stripping on `phases[].sources`, scrubbing chunk ids from text, merging CK gaps into `not_covered`, and building `missing_details`
 
-The browser then calls `POST /api/materials` (`run.run_materials`), which makes one `MATERIALS` agent call to produce handouts and the exit ticket (`LessonMaterials`). This is a separate stage so a Gemini failure there never loses the plan. The browser sends the plan back, so the server stores nothing between the two calls.
+The browser then calls `POST /api/materials` (`run.run_materials`), which makes one `MATERIALS` agent call to produce handouts and the exit ticket (`LessonMaterials`), then runs the same output screen (its `warnings` are shown on the Handouts and Quiz tabs). This is a separate stage so a Gemini failure there never loses the plan. The browser sends the plan back, so the server stores nothing between the two calls.
+
+Content screening fails closed: if a screening agent errors, the request fails rather than skipping the check. The keyword filter in `validation.check_safety` still runs first and costs nothing.
 
 Details by module:
 
 - **Agents (`agents.py`)**: each agent is an `AgentSpec`: a prompt file plus either `required_keys` or a Pydantic `schema`.
-  - Schema agents (`TPACK`, `MATERIALS`, with models in `lesson_schema.py`) are validated and retried **once** with the validation errors appended to the prompt. A second failure raises `AgentOutputError`.
+  - Schema agents (`TPACK`, `MATERIALS`, `INPUT_SCREEN`, `OUTPUT_SCREEN`, with models in `lesson_schema.py`) are validated and retried **once** with the validation errors appended to the prompt. A second failure raises `AgentOutputError`.
+  - `prompts/guidelines.md` is the content policy (offensive, harmful, unethical, illegal, out of scope). `agents.GUIDELINES` loads it once and `run_agent` fills every prompt's `{guidelines}` placeholder with it, so every prompt, including new ones, must contain `{guidelines}` (`test_every_prompt_has_the_guidelines_placeholder`). Edit the policy there, not in code.
   - `lesson_schema.py` is the contract shared by the prompts, `api.py`'s response models and the Result screen. Change all of them together.
   - CK, PK and TK are foundational agents that never see each other's output. The PK and TK prompts forbid crossing into other domains.
   - The intersection agents each combine two foundational outputs via `upstream=`: PCK (CK+PK), TCK (CK+TK), TPK (PK+TK). Each returns `trade_offs` (decision, options, chosen, given_up, because).

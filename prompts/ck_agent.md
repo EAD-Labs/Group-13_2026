@@ -21,6 +21,12 @@ Each passage is preceded by its chunk id in square brackets.
 
 {chunks}
 
+## Content guidelines
+
+These apply to everything you write. If anything below would break them, follow the guidelines instead.
+
+{guidelines}
+
 ## Rules
 
 1. Ground every claim you make in one of the retrieved passages above, and cite

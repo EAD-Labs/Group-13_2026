@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentTPACK Flowchart</title>
+<style>
+  :root {
+    --bg: #fbfaf7; --panel: #ffffff; --fg: #1d1d1b; --muted: #5f5e58; --line: #dcd9d0;
+    --accent: #2f5d8a; --code-bg: #f3f1ea;
+    --lane-a: #f6f4ee; --lane-b: #fbfaf7;
+    --user-bg: #e6eef6; --user-line: #2f5d8a;
+    --sys-bg: #ffffff; --sys-line: #b9b6ac;
+    --guard-bg: #fdf3e2; --guard-line: #c98a1b;
+    --agent-bg: #efe8f6; --agent-line: #7a4fa0;
+    --llm-bg: #eeede8; --llm-line: #8a887f;
+    --err-bg: #fbe9e7; --err-line: #b5432f;
+    --note-bg: #ffffff; --note-line: #c9c6bc;
+    --edge: #6f6e67;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161614; --panel: #1f1f1c; --fg: #ecebe6; --muted: #a9a79f; --line: #3a3934;
+      --accent: #8db6e0; --code-bg: #2a2925;
+      --lane-a: #1c1c19; --lane-b: #161614;
+      --user-bg: #1f2d3b; --user-line: #8db6e0;
+      --sys-bg: #24241f; --sys-line: #55534c;
+      --guard-bg: #33291a; --guard-line: #d9a441;
+      --agent-bg: #2a2133; --agent-line: #c39be6;
+      --llm-bg: #2a2925; --llm-line: #8f8d85;
+      --err-bg: #3a1f1b; --err-line: #e07a66;
+      --note-bg: #1f1f1c; --note-line: #4a4943;
+      --edge: #a3a199;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161614; --panel: #1f1f1c; --fg: #ecebe6; --muted: #a9a79f; --line: #3a3934;
+    --accent: #8db6e0; --code-bg: #2a2925;
+    --lane-a: #1c1c19; --lane-b: #161614;
+    --user-bg: #1f2d3b; --user-line: #8db6e0;
+    --sys-bg: #24241f; --sys-line: #55534c;
+    --guard-bg: #33291a; --guard-line: #d9a441;
+    --agent-bg: #2a2133; --agent-line: #c39be6;
+    --llm-bg: #2a2925; --llm-line: #8f8d85;
+    --err-bg: #3a1f1b; --err-line: #e07a66;
+    --note-bg: #1f1f1c; --note-line: #4a4943;
+    --edge: #a3a199;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.88em; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; }
+  a { color: var(--accent); }
+  main { max-width: 1240px; margin: 0 auto; padding: 32px 24px 80px; }
+  h1 { font-size: 2rem; margin: 0 0 6px; line-height: 1.2; }
+  .lede { color: var(--muted); font-size: 1.06rem; margin: 0 0 18px; max-width: 860px; }
+  h2 { font-size: 1.35rem; margin: 44px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  p, li { max-width: 900px; }
+  .links { font-size: 0.92rem; color: var(--muted); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; margin: 14px 0 10px; font-size: 0.9rem; color: var(--muted); }
+  .legend span.sw { display: inline-flex; align-items: center; gap: 8px; }
+  .legend i { display: inline-block; width: 22px; height: 14px; border-radius: 3px; border: 1.5px solid; }
+  .legend i.user  { background: var(--user-bg);  border-color: var(--user-line); }
+  .legend i.sys   { background: var(--sys-bg);   border-color: var(--sys-line); }
+  .legend i.guard { background: var(--guard-bg); border-color: var(--guard-line); transform: rotate(45deg) scale(0.75); }
+  .legend i.agent { background: var(--agent-bg); border-color: var(--agent-line); }
+  .legend i.llm   { background: var(--llm-bg);   border-color: var(--llm-line); border-style: dashed; }
+  .legend i.err   { background: var(--err-bg);   border-color: var(--err-line); }
+  .legend i.conn  { width: 16px; height: 16px; border-radius: 50%; background: var(--panel); border-color: var(--accent); }
+  .legend b.ln { display: inline-block; width: 26px; border-top: 2px solid var(--edge); vertical-align: middle; }
+  .legend b.ln.d { border-top-style: dashed; }
+  .legend b.ln.r { border-top-color: var(--err-line); }
+
+  figure { margin: 10px 0 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+  figure .scroll { overflow-x: auto; }
+  figure svg { display: block; width: 100%; min-width: 1000px; height: auto; }
+  figcaption { color: var(--muted); font-size: 0.88rem; margin: 8px 6px 4px; }
+
+  svg .lane-a { fill: var(--lane-a); }
+  svg .lane-b { fill: var(--lane-b); }
+  svg .lane-sep { stroke: var(--line); stroke-width: 1; }
+  svg .stage { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 6; opacity: 0.7; }
+  svg .lh { fill: var(--fg); font: 700 13px system-ui, sans-serif; letter-spacing: 0.05em; }
+  svg .lsub { fill: var(--muted); font: 11px ui-monospace, Consolas, monospace; }
+  svg .stg { fill: var(--accent); font: 700 11.5px system-ui, sans-serif; letter-spacing: 0.06em; }
+
+  svg .user  { fill: var(--user-bg);  stroke: var(--user-line);  stroke-width: 1.6; }
+  svg .sys   { fill: var(--sys-bg);   stroke: var(--sys-line);   stroke-width: 1.4; }
+  svg .guard { fill: var(--guard-bg); stroke: var(--guard-line); stroke-width: 1.6; }
+  svg .agent { fill: var(--agent-bg); stroke: var(--agent-line); stroke-width: 1.4; }
+  svg .agent-strong { fill: var(--agent-bg); stroke: var(--agent-line); stroke-width: 2.2; }
+  svg .grp   { fill: none; stroke: var(--agent-line); stroke-width: 1.2; stroke-dasharray: 5 4; }
+  svg .llm   { fill: var(--llm-bg);   stroke: var(--llm-line);   stroke-width: 1.4; stroke-dasharray: 6 4; }
+  svg .err   { fill: var(--err-bg);   stroke: var(--err-line);   stroke-width: 1.6; }
+  svg .note  { fill: var(--note-bg);  stroke: var(--note-line);  stroke-width: 1.2; stroke-dasharray: 3 3; }
+  svg .db    { fill: var(--sys-bg);   stroke: var(--sys-line);   stroke-width: 1.4; }
+  svg .conn  { fill: var(--panel);    stroke: var(--accent);     stroke-width: 1.6; }
+
+  svg .t  { fill: var(--fg); font: 600 13px system-ui, sans-serif; }
+  svg .s  { fill: var(--muted); font: 11.5px system-ui, sans-serif; }
+  svg .ct { fill: var(--accent); font: 700 12px system-ui, sans-serif; }
+  svg .gh { fill: var(--agent-line); font: 700 10.5px system-ui, sans-serif; letter-spacing: 0.06em; }
+  svg .lb { fill: var(--muted); font: italic 11px system-ui, sans-serif; }
+  svg .lb-y { fill: var(--fg); font: 600 11px system-ui, sans-serif; }
+  svg .lb-n { fill: var(--err-line); font: 600 11px system-ui, sans-serif; }
+
+  svg .e   { fill: none; stroke: var(--edge); stroke-width: 1.6; }
+  svg .ret { fill: none; stroke: var(--edge); stroke-width: 1.3; stroke-dasharray: 6 4; }
+  svg .ef  { fill: none; stroke: var(--err-line); stroke-width: 1.6; }
+  svg .ah  { fill: var(--edge); }
+  svg .ah-err { fill: var(--err-line); }
+
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.92rem; background: var(--panel); }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border: 1px solid var(--line); }
+  th { background: var(--code-bg); font-weight: 600; }
+  ol.stages > li { margin-bottom: 10px; }
+
+  @media (max-width: 700px) {
+    main { padding: 20px 16px 60px; }
+    h1 { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>AgentTPACK flowchart</h1>
+  <p class="lede">One picture of the whole application: what the teacher does, what the system does in response, where the guardrails can stop a request, how the agents pass information to each other, and how the result comes back. Time runs from top to bottom.</p>
+  <p class="links">Companion pages: <a href="architecture.html">architecture.html</a> (modules and concepts) · <a href="execution_flow.html">execution_flow.html</a> (exact objects, in order) · <a href="index.html">all pages</a>.</p>
+
+  <div class="legend" aria-label="Legend">
+    <span class="sw"><i class="user"></i>teacher sees / does</span>
+    <span class="sw"><i class="sys"></i>system step</span>
+    <span class="sw"><i class="guard"></i>guardrail / decision</span>
+    <span class="sw"><i class="agent"></i>AI agent</span>
+    <span class="sw"><i class="llm"></i>Gemini (external)</span>
+    <span class="sw"><i class="err"></i>error shown to teacher</span>
+    <span class="sw"><i class="conn"></i><b style="color:var(--accent)">R</b> = re-run generation</span>
+    <span class="sw"><b class="ln"></b>flow</span>
+    <span class="sw"><b class="ln d"></b>result returned</span>
+    <span class="sw"><b class="ln r"></b>failure path</span>
+  </div>
+
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 1420 2460" role="img" aria-labelledby="fc-title fc-desc">
+      <title id="fc-title">AgentTPACK end-to-end flowchart</title>
+      <desc id="fc-desc">Swimlane flowchart with five lanes: teacher and browser, API and guardrails, knowledge base, agents, and the Gemini LLM. The teacher fills the wizard; browser checks run; the API checks shape, safety and consistency; the textbook is searched and relevance checked; seven agents run in three layers, each calling Gemini; the plan is schema-checked with one retry, cleaned by output guardrails and shown. Then handouts and a quiz are generated by a materials agent with the same checks. Finally the teacher can view citations, regenerate with missing details, or print. Every failure path returns to the teacher with an error and a reference id.</desc>
+      <defs>
+        <marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+        <marker id="fr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-err"/></marker>
+      </defs>
+
+      <!-- ===== Lanes ===== -->
+      <rect class="lane-a" x="0"    y="0" width="280" height="2460"/>
+      <rect class="lane-b" x="280"  y="0" width="300" height="2460"/>
+      <rect class="lane-a" x="580"  y="0" width="280" height="2460"/>
+      <rect class="lane-b" x="860"  y="0" width="300" height="2460"/>
+      <rect class="lane-a" x="1160" y="0" width="260" height="2460"/>
+      <line class="lane-sep" x1="280"  y1="0" x2="280"  y2="2460"/>
+      <line class="lane-sep" x1="580"  y1="0" x2="580"  y2="2460"/>
+      <line class="lane-sep" x1="860"  y1="0" x2="860"  y2="2460"/>
+      <line class="lane-sep" x1="1160" y1="0" x2="1160" y2="2460"/>
+      <line class="lane-sep" x1="0" y1="56" x2="1420" y2="56"/>
+
+      <text class="lh" x="140"  y="26" text-anchor="middle">TEACHER · BROWSER</text>
+      <text class="lsub" x="140"  y="45" text-anchor="middle">static/index.html</text>
+      <text class="lh" x="430"  y="26" text-anchor="middle">API · GUARDRAILS</text>
+      <text class="lsub" x="430"  y="45" text-anchor="middle">api.py · validation.py · run.py</text>
+      <text class="lh" x="720"  y="26" text-anchor="middle">KNOWLEDGE BASE</text>
+      <text class="lsub" x="720"  y="45" text-anchor="middle">retrieval.py · ChromaDB</text>
+      <text class="lh" x="1010" y="26" text-anchor="middle">AGENTS</text>
+      <text class="lsub" x="1010" y="45" text-anchor="middle">agents.py · prompts/</text>
+      <text class="lh" x="1290" y="26" text-anchor="middle">LLM</text>
+      <text class="lsub" x="1290" y="45" text-anchor="middle">llm.py · Gemini</text>
+
+      <!-- stage markers -->
+      <text class="stg" x="1410" y="76" text-anchor="end">STAGE 1 · LESSON PLAN</text>
+      <line class="stage" x1="0" y1="1866" x2="1420" y2="1866"/>
+      <text class="stg" x="1410" y="1860" text-anchor="end">STAGE 2 · HANDOUTS &amp; QUIZ</text>
+      <line class="stage" x1="0" y1="2175" x2="1420" y2="2175"/>
+      <text class="stg" x="1410" y="2169" text-anchor="end">AFTERWARDS</text>
+
+      <!-- ===== Stage 1: input ===== -->
+      <rect class="user" x="40" y="76" width="200" height="44" rx="22"/>
+      <text class="t" x="140" y="103" text-anchor="middle">Teacher opens the app</text>
+      <path class="e" d="M140 120 V148" marker-end="url(#fa)"/>
+
+      <rect class="user" x="30" y="150" width="220" height="64" rx="8"/>
+      <text class="t" x="140" y="176" text-anchor="middle">Fills the 3-step wizard</text>
+      <text class="s" x="140" y="196" text-anchor="middle">content · learners · technology</text>
+      <path class="e" d="M140 214 V242" marker-end="url(#fa)"/>
+
+      <polygon class="guard" points="140,244 245,290 140,336 35,290"/>
+      <text class="t" x="140" y="286" text-anchor="middle">Browser checks</text>
+      <text class="s" x="140" y="303" text-anchor="middle">pass?</text>
+      <path class="ef" d="M35 290 H20 V196 H28" marker-end="url(#fr)"/>
+      <text class="lb-n" x="6" y="318">No</text>
+      <path class="e" d="M140 336 V364" marker-end="url(#fa)"/>
+      <text class="lb-y" x="148" y="354">Yes</text>
+
+      <rect class="user" x="30" y="366" width="220" height="54" rx="8"/>
+      <text class="t" x="140" y="389" text-anchor="middle">Review → Generate lesson</text>
+      <text class="s" x="140" y="407" text-anchor="middle">loading screen while agents work</text>
+      <circle class="conn" cx="262" cy="344" r="11"/>
+      <text class="ct" x="262" y="348" text-anchor="middle">R</text>
+      <path class="e" d="M256 354 L248 364" marker-end="url(#fa)"/>
+
+      <path class="e" d="M250 393 H318" marker-end="url(#fa)"/>
+      <text class="lb" x="284" y="386" text-anchor="middle">POST</text>
+
+      <rect class="sys" x="320" y="366" width="220" height="54" rx="8"/>
+      <text class="t" x="430" y="389" text-anchor="middle">API receives request</text>
+      <text class="s" x="430" y="407" text-anchor="middle">trace id assigned · logged</text>
+      <path class="e" d="M430 420 V446" marker-end="url(#fa)"/>
+
+      <!-- Guardrail: shape -->
+      <polygon class="guard" points="430,448 550,500 430,552 310,500"/>
+      <text class="t" x="430" y="494" text-anchor="middle">Well-formed?</text>
+      <text class="s" x="430" y="511" text-anchor="middle">types · enums · limits</text>
+      <path class="ef" d="M310 500 H265 V610 H254" marker-end="url(#fr)"/>
+      <text class="lb-n" x="306" y="490" text-anchor="end">No</text>
+      <path class="e" d="M430 552 V571" marker-end="url(#fa)"/>
+      <text class="lb-y" x="422" y="566" text-anchor="end">Yes</text>
+
+      <!-- Guardrail: safety -->
+      <polygon class="guard" points="430,573 550,625 430,677 310,625"/>
+      <text class="t" x="430" y="619" text-anchor="middle">Safe text?</text>
+      <text class="s" x="430" y="636" text-anchor="middle">no injection / unsafe</text>
+      <path class="ef" d="M310 625 H254" marker-end="url(#fr)"/>
+      <text class="lb-n" x="306" y="616" text-anchor="end">No</text>
+      <path class="e" d="M430 677 V696" marker-end="url(#fa)"/>
+      <text class="lb-y" x="422" y="691" text-anchor="end">Yes</text>
+
+      <!-- Guardrail: consistency -->
+      <polygon class="guard" points="430,698 550,750 430,802 310,750"/>
+      <text class="t" x="430" y="744" text-anchor="middle">Consistent?</text>
+      <text class="s" x="430" y="761" text-anchor="middle">no contradictions</text>
+      <path class="ef" d="M310 750 H265 V665 H254" marker-end="url(#fr)"/>
+      <text class="lb-n" x="306" y="741" text-anchor="end">No</text>
+
+      <!-- Error card 1 -->
+      <rect class="err" x="30" y="590" width="220" height="110" rx="8"/>
+      <text class="t" x="140" y="614" text-anchor="middle">Show error to teacher</text>
+      <text class="s" x="140" y="634" text-anchor="middle">highlights the field</text>
+      <text class="s" x="140" y="651" text-anchor="middle">jumps to that wizard step</text>
+      <text class="s" x="140" y="668" text-anchor="middle">HTTP 422 · reference id</text>
+      <text class="s" x="140" y="686" text-anchor="middle">no AI call was made</text>
+      <path class="e" d="M140 590 V422" marker-end="url(#fa)"/>
+      <text class="lb" x="148" y="512">fix &amp; resubmit</text>
+
+      <!-- Retrieval -->
+      <path class="e" d="M430 802 V835 H598" marker-end="url(#fa)"/>
+      <text class="lb-y" x="422" y="822" text-anchor="end">Yes</text>
+      <text class="lb" x="470" y="827">+ warnings</text>
+
+      <rect class="sys" x="600" y="800" width="170" height="70" rx="8"/>
+      <text class="t" x="685" y="826" text-anchor="middle">Search textbook</text>
+      <text class="s" x="685" y="845" text-anchor="middle">topic → top 4 passages</text>
+      <text class="s" x="685" y="861" text-anchor="middle">within the chapter</text>
+
+      <path class="db" d="M790 812 a30 8 0 0 0 60 0 a30 8 0 0 0 -60 0 V858 a30 8 0 0 0 60 0 V812"/>
+      <text class="s" x="820" y="840" text-anchor="middle">Chroma</text>
+      <text class="s" x="820" y="854" text-anchor="middle">DB</text>
+      <path class="e" d="M772 835 H788" marker-start="url(#fa)" marker-end="url(#fa)"/>
+
+      <path class="e" d="M685 870 V960 H552" marker-end="url(#fa)"/>
+      <text class="lb" x="693" y="915">passages + distance</text>
+
+      <!-- Guardrail: relevance -->
+      <polygon class="guard" points="430,908 550,960 430,1012 310,960"/>
+      <text class="t" x="430" y="954" text-anchor="middle">In this chapter?</text>
+      <text class="s" x="430" y="971" text-anchor="middle">distance ≤ 0.80</text>
+      <path class="ef" d="M310 960 H200 V702" marker-end="url(#fr)"/>
+      <text class="lb-n" x="306" y="951" text-anchor="end">No</text>
+
+      <path class="e" d="M430 1012 V1060 H870" marker-end="url(#fa)"/>
+      <text class="lb-y" x="422" y="1036" text-anchor="end">Yes</text>
+      <text class="lb" x="600" y="1052">request + passages</text>
+
+      <!-- waiting note -->
+      <rect class="note" x="30" y="1060" width="220" height="64" rx="8"/>
+      <text class="t" x="140" y="1086" text-anchor="middle">Teacher waits</text>
+      <text class="s" x="140" y="1104" text-anchor="middle">roughly 1–3 minutes</text>
+
+      <!-- ===== Agents ===== -->
+      <rect class="grp" x="872" y="1010" width="276" height="160" rx="10"/>
+      <text class="gh" x="884" y="1030">LAYER 1 · FOUNDATIONAL</text>
+      <rect class="agent" x="880" y="1042" width="84" height="88" rx="6"/>
+      <text class="t" x="922" y="1066" text-anchor="middle">CK</text>
+      <text class="s" x="922" y="1084" text-anchor="middle">content</text>
+      <text class="s" x="922" y="1100" text-anchor="middle">passages</text>
+      <text class="s" x="922" y="1116" text-anchor="middle">only</text>
+      <rect class="agent" x="972" y="1042" width="84" height="88" rx="6"/>
+      <text class="t" x="1014" y="1066" text-anchor="middle">PK</text>
+      <text class="s" x="1014" y="1084" text-anchor="middle">pedagogy</text>
+      <text class="s" x="1014" y="1100" text-anchor="middle">learners +</text>
+      <text class="s" x="1014" y="1116" text-anchor="middle">method</text>
+      <rect class="agent" x="1064" y="1042" width="84" height="88" rx="6"/>
+      <text class="t" x="1106" y="1066" text-anchor="middle">TK</text>
+      <text class="s" x="1106" y="1084" text-anchor="middle">technology</text>
+      <text class="s" x="1106" y="1100" text-anchor="middle">classroom</text>
+      <text class="s" x="1106" y="1116" text-anchor="middle">setup only</text>
+      <text class="s" x="1010" y="1158" text-anchor="middle">never see each other's output</text>
+
+      <path class="e" d="M1010 1170 V1208" marker-end="url(#fa)"/>
+
+      <rect class="grp" x="872" y="1210" width="276" height="160" rx="10"/>
+      <text class="gh" x="884" y="1230">LAYER 2 · INTERSECTIONS</text>
+      <rect class="agent" x="880" y="1242" width="84" height="88" rx="6"/>
+      <text class="t" x="922" y="1266" text-anchor="middle">PCK</text>
+      <text class="s" x="922" y="1284" text-anchor="middle">CK + PK</text>
+      <text class="s" x="922" y="1300" text-anchor="middle">content →</text>
+      <text class="s" x="922" y="1316" text-anchor="middle">each phase</text>
+      <rect class="agent" x="972" y="1242" width="84" height="88" rx="6"/>
+      <text class="t" x="1014" y="1266" text-anchor="middle">TCK</text>
+      <text class="s" x="1014" y="1284" text-anchor="middle">CK + TK</text>
+      <text class="s" x="1014" y="1300" text-anchor="middle">concepts →</text>
+      <text class="s" x="1014" y="1316" text-anchor="middle">visuals</text>
+      <rect class="agent" x="1064" y="1242" width="84" height="88" rx="6"/>
+      <text class="t" x="1106" y="1266" text-anchor="middle">TPK</text>
+      <text class="s" x="1106" y="1284" text-anchor="middle">PK + TK</text>
+      <text class="s" x="1106" y="1300" text-anchor="middle">tools →</text>
+      <text class="s" x="1106" y="1316" text-anchor="middle">each phase</text>
+      <text class="s" x="1010" y="1358" text-anchor="middle">each records its trade-offs</text>
+
+      <path class="e" d="M1010 1370 V1408" marker-end="url(#fa)"/>
+
+      <rect class="agent-strong" x="880" y="1410" width="260" height="70" rx="8"/>
+      <text class="t" x="1010" y="1438" text-anchor="middle">TPACK integrator</text>
+      <text class="s" x="1010" y="1458" text-anchor="middle">all 6 outputs + passages → plan</text>
+      <path class="e" d="M1010 1480 V1516" marker-end="url(#fa)"/>
+
+      <!-- Guardrail: plan schema -->
+      <polygon class="guard" points="1010,1518 1130,1570 1010,1622 890,1570"/>
+      <text class="t" x="1010" y="1564" text-anchor="middle">Valid plan?</text>
+      <text class="s" x="1010" y="1581" text-anchor="middle">matches LessonPlan</text>
+      <path class="ef" d="M890 1570 H872 V1450 H878" marker-end="url(#fr)"/>
+      <text class="lb-n" x="878" y="1600">No (1st):</text>
+      <text class="lb" x="878" y="1614">retry once</text>
+      <path class="ef" d="M1130 1570 H1170"/>
+      <text class="lb-n" x="1158" y="1556" text-anchor="end">No (2nd)</text>
+
+      <!-- every agent ↔ Gemini bus -->
+      <path class="e" d="M1148 1090 H1155 M1148 1290 H1155 M1140 1445 H1155 M1155 1090 V1445"/>
+      <path class="e" d="M1155 1115 H1178" marker-end="url(#fa)"/>
+
+      <!-- ===== LLM lane ===== -->
+      <rect class="llm" x="1180" y="1080" width="222" height="70" rx="8"/>
+      <text class="t" x="1291" y="1108" text-anchor="middle">Gemini call</text>
+      <text class="s" x="1291" y="1128" text-anchor="middle">one per agent · JSON mode</text>
+      <path class="e" d="M1290 1150 V1188" marker-end="url(#fa)"/>
+
+      <polygon class="guard" points="1290,1190 1402,1240 1290,1290 1178,1240"/>
+      <text class="t" x="1290" y="1234" text-anchor="middle">Reply OK?</text>
+      <text class="s" x="1290" y="1251" text-anchor="middle">valid JSON object</text>
+      <path class="e" d="M1402 1240 H1412 V1100 H1404" marker-end="url(#fa)"/>
+      <text class="lb" x="1404" y="1176" text-anchor="end">busy: wait, retry</text>
+      <text class="lb" x="1404" y="1189" text-anchor="end">or next model</text>
+      <path class="e" d="M1290 1290 V1318" marker-end="url(#fa)"/>
+      <text class="lb-y" x="1298" y="1308">Yes</text>
+      <text class="lb-n" x="1176" y="1230" text-anchor="end">No</text>
+
+      <rect class="llm" x="1180" y="1320" width="222" height="60" rx="8"/>
+      <text class="t" x="1291" y="1346" text-anchor="middle">Parse JSON</text>
+      <text class="s" x="1291" y="1364" text-anchor="middle">→ back to the calling agent</text>
+      <path class="ret" d="M1180 1350 H1158" marker-end="url(#fa)"/>
+
+      <rect class="note" x="1180" y="1420" width="222" height="80" rx="8"/>
+      <text class="t" x="1291" y="1446" text-anchor="middle">Logged at every step</text>
+      <text class="s" x="1291" y="1464" text-anchor="middle">hand-offs · trade-offs · timings</text>
+      <text class="s" x="1291" y="1481" text-anchor="middle">logs/ · python trace.py</text>
+
+      <!-- failure bus: LLM exhausted + plan invalid twice -->
+      <path class="ef" d="M1178 1240 H1170 V1660 H1020 a10 10 0 0 0 -20 0 H254" marker-end="url(#fr)"/>
+      <text class="lb" x="700" y="1652" text-anchor="middle">AI unavailable or answer unusable</text>
+
+      <rect class="err" x="30" y="1615" width="220" height="95" rx="8"/>
+      <text class="t" x="140" y="1640" text-anchor="middle">Show error card</text>
+      <text class="s" x="140" y="1660" text-anchor="middle">AI, agent or index failed</text>
+      <text class="s" x="140" y="1677" text-anchor="middle">HTTP 502 / 503 · reference id</text>
+      <text class="s" x="140" y="1694" text-anchor="middle">button: Try again</text>
+      <circle class="conn" cx="14" cy="1662" r="10"/>
+      <text class="ct" x="14" y="1666" text-anchor="middle">R</text>
+      <path class="e" d="M30 1662 H26" marker-end="url(#fa)"/>
+
+      <!-- ===== Output guardrails ===== -->
+      <path class="e" d="M1010 1622 V1760 H552" marker-end="url(#fa)"/>
+      <text class="lb-y" x="1018" y="1700">Yes</text>
+      <text class="lb" x="1046" y="1700">lesson plan</text>
+
+      <rect class="guard" x="300" y="1715" width="250" height="140" rx="8"/>
+      <text class="t" x="316" y="1738">Output guardrails</text>
+      <text class="s" x="316" y="1758">• drop citations not retrieved</text>
+      <text class="s" x="316" y="1775">• strip ids from the text</text>
+      <text class="s" x="316" y="1792">• minutes = duration? (warn)</text>
+      <text class="s" x="316" y="1809">• add uncovered content</text>
+      <text class="s" x="316" y="1826">• re-validate the plan</text>
+      <text class="s" x="316" y="1843">• questions for missing details</text>
+      <path class="e" d="M300 1795 H254" marker-end="url(#fa)"/>
+
+      <rect class="user" x="30" y="1750" width="220" height="96" rx="8"/>
+      <text class="t" x="140" y="1774" text-anchor="middle">Plan tab</text>
+      <text class="s" x="140" y="1794" text-anchor="middle">steps · board notes · questions</text>
+      <text class="s" x="140" y="1811" text-anchor="middle">textbook chips · warnings</text>
+      <text class="s" x="140" y="1828" text-anchor="middle">why the plan looks like this</text>
+
+      <!-- ===== Stage 2 ===== -->
+      <path class="e" d="M140 1846 V1878" marker-end="url(#fa)"/>
+      <rect class="user" x="30" y="1880" width="220" height="60" rx="8"/>
+      <text class="t" x="140" y="1905" text-anchor="middle">Asks for handouts &amp; quiz</text>
+      <text class="s" x="140" y="1924" text-anchor="middle">automatic · same trace id</text>
+      <path class="e" d="M250 1910 H298" marker-end="url(#fa)"/>
+
+      <rect class="guard" x="300" y="1880" width="250" height="60" rx="8"/>
+      <text class="t" x="425" y="1905" text-anchor="middle">Safety re-checked</text>
+      <text class="s" x="425" y="1924" text-anchor="middle">same passages fetched again</text>
+      <path class="e" d="M550 1910 H878" marker-end="url(#fa)"/>
+      <text class="lb" x="600" y="1902">request + plan</text>
+
+      <rect class="agent-strong" x="880" y="1880" width="260" height="60" rx="8"/>
+      <text class="t" x="1010" y="1905" text-anchor="middle">MATERIALS agent</text>
+      <text class="s" x="1010" y="1924" text-anchor="middle">plan + passages → sheets &amp; quiz</text>
+      <path class="e" d="M1140 1900 H1178" marker-end="url(#fa)"/>
+      <path class="ret" d="M1180 1922 H1142" marker-end="url(#fa)"/>
+
+      <rect class="llm" x="1180" y="1880" width="222" height="60" rx="8"/>
+      <text class="t" x="1291" y="1905" text-anchor="middle">Gemini call</text>
+      <text class="s" x="1291" y="1924" text-anchor="middle">same retry rules</text>
+
+      <path class="e" d="M1010 1940 V1958" marker-end="url(#fa)"/>
+      <polygon class="guard" points="1010,1960 1130,2010 1010,2060 890,2010"/>
+      <text class="t" x="1010" y="2004" text-anchor="middle">Valid materials?</text>
+      <text class="s" x="1010" y="2021" text-anchor="middle">answer is an option</text>
+      <path class="ef" d="M890 2010 H872 V1925 H878" marker-end="url(#fr)"/>
+      <text class="lb-n" x="878" y="2040">No (1st):</text>
+      <text class="lb" x="878" y="2054">retry once</text>
+      <path class="e" d="M1010 2060 V2110 H254" marker-end="url(#fa)"/>
+      <text class="lb-y" x="1018" y="2086">Yes</text>
+      <path class="ef" d="M1130 2010 H1170 V2140 H254" marker-end="url(#fr)"/>
+      <text class="lb-n" x="1158" y="1996" text-anchor="end">No (2nd)</text>
+
+      <rect class="user" x="30" y="2085" width="220" height="80" rx="8"/>
+      <text class="t" x="140" y="2108" text-anchor="middle">Handouts &amp; Quiz tabs</text>
+      <text class="s" x="140" y="2127" text-anchor="middle">printable sheets · exit ticket</text>
+      <text class="s" x="140" y="2146" text-anchor="middle">if failed: Retry, plan is kept</text>
+      <path class="e" d="M30 2150 H14 V1925 H28" marker-end="url(#fa)"/>
+      <text class="lb" x="10" y="2040" transform="rotate(-90 10 2040)" text-anchor="middle">Retry</text>
+
+      <!-- ===== Afterwards ===== -->
+      <path class="e" d="M140 2165 V2194" marker-end="url(#fa)"/>
+      <polygon class="user" points="140,2196 235,2240 140,2284 45,2240"/>
+      <text class="t" x="140" y="2245" text-anchor="middle">What next?</text>
+
+      <path class="e" d="M235 2240 H598" marker-end="url(#fa)"/>
+      <text class="lb" x="250" y="2232">click a textbook chip</text>
+      <rect class="sys" x="600" y="2210" width="240" height="60" rx="8"/>
+      <text class="t" x="720" y="2235" text-anchor="middle">Look up passage by id</text>
+      <text class="s" x="720" y="2254" text-anchor="middle">id checked · original text shown</text>
+
+      <path class="e" d="M45 2240 H30" marker-end="url(#fa)"/>
+      <circle class="conn" cx="18" cy="2240" r="10"/>
+      <text class="ct" x="18" y="2244" text-anchor="middle">R</text>
+      <text class="lb" x="4" y="2275">answer a</text>
+      <text class="lb" x="4" y="2289">missing detail</text>
+
+      <path class="e" d="M140 2284 V2308" marker-end="url(#fa)"/>
+      <text class="lb" x="148" y="2300">print</text>
+      <rect class="user" x="30" y="2310" width="220" height="54" rx="8"/>
+      <text class="t" x="140" y="2333" text-anchor="middle">Download teacher pack</text>
+      <text class="s" x="140" y="2351" text-anchor="middle">print / save as PDF</text>
+      <path class="e" d="M140 2364 V2392" marker-end="url(#fa)"/>
+      <rect class="user" x="40" y="2394" width="200" height="44" rx="22"/>
+      <text class="t" x="140" y="2421" text-anchor="middle">Lesson ready to teach</text>
+    </svg>
+    </div>
+    <figcaption>Every <b>R</b> circle means the browser sends the whole request again from "Generate lesson", under a new trace id. The arrows into the Gemini lane stand for one call per agent: 7 calls for the plan (up to 8 if TPACK retries) and 1–2 for the materials. Retrieval failures (no index) also end in the 502/503 error card.</figcaption>
+  </figure>
+
+  <h2>Reading the flow, stage by stage</h2>
+  <ol class="stages">
+    <li><strong>Input.</strong> The teacher works through three wizard steps. The browser applies the same limits as the server (required fields, number ranges, lengths, and contradictions such as "1:1 devices but no devices"), so most mistakes are caught before anything is sent.</li>
+    <li><strong>Guardrails before any AI call.</strong> The server checks four things in a fixed order: the request is well-formed, the text is safe, the classroom details are consistent, and the topic is really in the chosen chapter. The first check that fails stops the request and sends a 422 with the exact field to fix. No AI time or quota is spent on a rejected request.</li>
+    <li><strong>Grounding.</strong> The topic is searched in the chosen chapter of the NCERT textbook, and the 4 closest passages become the only content the agents may teach. Their ids become the plan's citations.</li>
+    <li><strong>Agents, layer 1.</strong> CK sees only the passages, PK only the learners and the teaching method, and TK only the classroom setup. None of them sees another's output.</li>
+    <li><strong>Agents, layer 2.</strong> PCK, TCK and TPK each combine two layer-1 outputs and record the compromises they make, for example "inquiry scoped down because of time".</li>
+    <li><strong>Integration.</strong> TPACK reads all six outputs and the passages and writes the lesson plan. The plan must match the required format. If it doesn't, TPACK gets one more attempt with the list of problems.</li>
+    <li><strong>Guardrails after the AI.</strong> Citations to passages that weren't retrieved are removed, internal ids are stripped from the text, timing mismatches become warnings, content the textbook lacks is listed as "not covered", and any missing inputs become questions for the teacher.</li>
+    <li><strong>Stage 2.</strong> As soon as the plan is on screen, the browser asks for handouts and a quiz. This is a separate call, so if it fails the plan is still there and the teacher gets a Retry button.</li>
+    <li><strong>Afterwards.</strong> The teacher can open any citation to read the original textbook paragraph, answer a missing-detail question to regenerate, or print the teacher pack.</li>
+  </ol>
+
+  <h2>Guardrails: when each one fires</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Guardrail</th><th>Where</th><th>Fires when</th><th>What happens</th></tr>
+    <tr><td>Browser checks</td><td>index.html</td><td>A required field is empty, a number is out of range, text is too long, or the setup contradicts the devices</td><td>Inline message under the field. Nothing is sent.</td></tr>
+    <tr><td>Well-formed request</td><td>api.py (Pydantic)</td><td>Missing or unknown field, invalid option, out-of-range value. Text is also cleaned (hidden characters removed, spacing fixed).</td><td>422: the field is highlighted and the wizard jumps to its step</td></tr>
+    <tr><td>Safe text</td><td>validation.py</td><td>A free-text field looks like an instruction to the AI ("ignore previous instructions") or contains clearly unsafe content</td><td>422 with a neutral message. The matched words are never repeated.</td></tr>
+    <tr><td>Consistent classroom</td><td>validation.py</td><td>Details contradict each other, for example a computer lab with no devices</td><td>422. A softer issue such as "tools but no internet" only becomes a warning.</td></tr>
+    <tr><td>Topic in chapter</td><td>validation.py, after the search</td><td>Even the closest passage is too far from the topic (distance &gt; 0.80)</td><td>422 "not covered by this chapter"</td></tr>
+    <tr><td>AI reply readable</td><td>llm.py</td><td>Gemini is busy, rate-limited, unavailable, or returns something that isn't valid JSON</td><td>Waits and retries, then tries the next model. If every model fails: 502 error card.</td></tr>
+    <tr><td>Agent answer complete</td><td>agents.py</td><td>A layer-1 or layer-2 agent leaves out a required part of its answer</td><td>502 error card</td></tr>
+    <tr><td>Plan / materials format</td><td>agents.py + lesson_schema.py</td><td>The plan or quiz doesn't match the expected structure (for example a quiz answer that isn't one of its options)</td><td>One retry with the problems listed. A second failure gives a 502.</td></tr>
+    <tr><td>Citations and ids</td><td>run.py</td><td>The plan cites a passage it wasn't given, or chunk ids appear in the prose</td><td>Removed quietly and counted in the planning notes</td></tr>
+    <tr><td>Timing</td><td>run.py</td><td>The phase minutes don't add up to the lesson length</td><td>Warning at the top of the plan</td></tr>
+  </table></div>
+
+  <h2>How the information changes along the way</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Point in the flow</th><th>What the information looks like</th></tr>
+    <tr><td>Wizard</td><td>Form fields, each tagged with a name such as <code>technology.student_devices</code></td></tr>
+    <tr><td>Request</td><td>Nested JSON: <code>content</code>, <code>learners</code>, <code>pedagogy</code>, <code>technology</code>, <code>other_requests</code></td></tr>
+    <tr><td>After the request checks</td><td>A cleaned, typed request. Option codes such as <code>5E</code> are turned into readable labels ("5E Model (Engage, …)") and unanswered optional fields become "Not specified".</td></tr>
+    <tr><td>After the search</td><td>4 passages, each with an id like <code>g7_ch01_s1.2_000</code>, its section and its text</td></tr>
+    <tr><td>Layer 1 and 2 agents</td><td>JSON notes: concepts and misconceptions, a phase plan, a technology profile, then content per phase, visual per concept, tool per phase, and trade-offs</td></tr>
+    <tr><td>TPACK</td><td>The lesson plan: overview, phases (steps, board notes, questions, misconceptions, fallback, sources), not covered, design decisions</td></tr>
+    <tr><td>After the output checks</td><td>The same plan, cleaned, plus warnings, missing-detail questions and planning notes</td></tr>
+    <tr><td>Stage 2</td><td>Handouts (tasks per phase) and an exit ticket (multiple choice with answer, explanation and Bloom's level)</td></tr>
+    <tr><td>Screen and print</td><td>Plan, Handouts and Quiz tabs. The printed pack adds a student quiz and a separate answer key.</td></tr>
+  </table></div>
+
+  <p class="links" style="margin-top:40px">Written from the source at commit <code>d572775</code>.</p>
+</main>
+</body>
+</html>

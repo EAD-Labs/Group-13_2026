@@ -260,6 +260,7 @@ class MaterialsRequest(_Strict):
 class MaterialsResponse(BaseModel):
     trace_id: Optional[str]
     materials: LessonMaterials
+    warnings: List[str] = Field(default_factory=list)
     agent_sequence: List[AgentStep]
 
 

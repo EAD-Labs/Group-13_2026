@@ -50,6 +50,8 @@ FAKE_CHUNKS = [
 ]
 
 FAKE_OUTPUTS = {
+    "agent:input_screen": {"verdict": "allow", "issues": []},
+    "agent:output_screen": {"verdict": "clean", "issues": []},
     "agent:ck": {
         "blocks": [{"title": "Core concepts", "content": "...", "cited_chunk_ids": ["g7_ch01_s1.2_000"]}],
         "coverage_gaps": ["stomata"],

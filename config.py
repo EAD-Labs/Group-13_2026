@@ -2,7 +2,9 @@
 
 CHROMA_PATH = "./chroma_store"
 COLLECTION_NAME = "ncert_g7_biology"
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+# Embeddings use ChromaDB's DefaultEmbeddingFunction: all-MiniLM-L6-v2 run
+# through onnxruntime, so no PyTorch is needed. It gives the same distances as
+# the sentence-transformers build of that model (checked 2026-10-21).
 
 GRADE = 7
 SOURCE = "NCERT Science Class 7"

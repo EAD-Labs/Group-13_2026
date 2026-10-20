@@ -1,5 +1,4 @@
 chromadb
-sentence-transformers
 langchain-text-splitters
 openai
 python-dotenv

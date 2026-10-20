@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentTPACK App Info</title>
+<style>
+  :root { --bg: #fbfaf7; --panel: #ffffff; --fg: #1d1d1b; --muted: #5f5e58; --line: #dcd9d0; --accent: #2f5d8a; --code-bg: #f3f1ea; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #161614; --panel: #1f1f1c; --fg: #ecebe6; --muted: #a9a79f; --line: #3a3934; --accent: #8db6e0; --code-bg: #2a2925; }
+  }
+  :root[data-theme="dark"] { --bg: #161614; --panel: #1f1f1c; --fg: #ecebe6; --muted: #a9a79f; --line: #3a3934; --accent: #8db6e0; --code-bg: #2a2925; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 40px 16px 60px; }
+  h1 { font-size: 2rem; margin: 0 0 6px; line-height: 1.2; }
+  .lede { color: var(--muted); margin: 0 0 28px; }
+  a.card { display: block; text-decoration: none; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 12px; }
+  a.card:hover { border-color: var(--accent); }
+  a.card h2 { margin: 0 0 4px; font-size: 1.15rem; color: var(--accent); }
+  a.card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+  .when { font-size: 0.82rem; color: var(--muted); margin-top: 8px; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 0.88em; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; }
+  footer { color: var(--muted); font-size: 0.85rem; margin-top: 28px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>AgentTPACK: how the app works</h1>
+  <p class="lede">Three views of the same system, from the big picture down to the exact code objects. Start with the flowchart.</p>
+
+  <a class="card" href="flowchart.html">
+    <h2>1. Flowchart</h2>
+    <p>The whole application in one swimlane picture: what the teacher does, where the guardrails can stop a request, how the seven agents and Gemini work together, and how the plan, handouts and quiz come back.</p>
+    <div class="when">Read first · about 5 minutes</div>
+  </a>
+
+  <a class="card" href="architecture.html">
+    <h2>2. Architecture</h2>
+    <p>The modules and the ideas behind them: system map, agent graph, how an agent runs, retry and fallback, post-processing, guardrails, the textbook data pipeline, data contracts, errors, logging, frontend, API and configuration.</p>
+    <div class="when">Read when you need to understand or change a part · about 20 minutes</div>
+  </a>
+
+  <a class="card" href="execution_flow.html">
+    <h2>3. Execution flow</h2>
+    <p>Every class, instance and function in the order it executes, from building the index (T0) and server start-up (T1) to one request (T2–T6), with a sequence diagram, a full call tree and a recorded event log.</p>
+    <div class="when">Read when debugging or tracing a request through the code</div>
+  </a>
+
+  <footer>Written from the source at commit <code>d572775</code>. Update these pages when the agents or the request flow change.</footer>
+</main>
+</body>
+</html>

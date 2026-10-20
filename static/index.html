@@ -661,7 +661,7 @@
   const state = {
     screen: SCREEN.welcome, furthest: 0, traceId: null, lastPayload: null,
     // Result screen
-    result: null, materials: null, materialsError: null, materialsToken: 0, quizAnswers: {},
+    result: null, materials: null, materialsWarnings: [], materialsError: null, materialsToken: 0, quizAnswers: {},
   };
 
   // ---------- DOM helpers (textContent only; never innerHTML with data) ----------
@@ -1213,19 +1213,24 @@
     const { missing_details, ...plan } = state.result.lesson;
     let error = null;
     let materials = null;
+    let warnings = [];
     try {
       const res = await fetch("/api/materials", {
         method: "POST",
         headers: Object.assign({ "Content-Type": "application/json" }, state.traceId ? { "X-Trace-Id": state.traceId } : {}),
         body: JSON.stringify({ request: state.lastPayload, plan }),
       });
-      if (res.ok) materials = (await res.json()).materials;
-      else error = await readError(res);
+      if (res.ok) {
+        const body = await res.json();
+        materials = body.materials;
+        warnings = body.warnings || [];
+      } else error = await readError(res);
     } catch (e) {
       error = { message: "Could not reach the server. Check that it is running." };
     }
     if (token !== state.materialsToken) return; // a newer lesson replaced this one
     state.materials = materials;
+    state.materialsWarnings = warnings;
     state.materialsError = error;
     state.quizAnswers = {};
     renderMaterials();
@@ -1254,10 +1259,12 @@
           e.traceId ? el("p", { class: "trace" }, ["Reference: ", el("span", { class: "mono", text: e.traceId })]) : null,
           el("button", { type: "button", class: "secondary-btn", text: "Retry", onclick: loadMaterials }),
         ]));
-      } else if (name === "handouts") {
-        renderHandouts(root, state.materials.handouts);
       } else {
-        renderQuiz(root, state.materials.exit_ticket);
+        if (state.materialsWarnings && state.materialsWarnings.length) {
+          root.appendChild(listCard("Please check", state.materialsWarnings, "warn"));
+        }
+        if (name === "handouts") renderHandouts(root, state.materials.handouts);
+        else renderQuiz(root, state.materials.exit_ticket);
       }
     });
   }

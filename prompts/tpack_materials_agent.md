@@ -23,6 +23,12 @@ general knowledge.
 {tpack_output}
 ```
 
+## Content guidelines
+
+These apply to everything you write. If anything below would break them, follow the guidelines instead.
+
+{guidelines}
+
 ## Rules
 
 1. **Handouts.** Write one handout for each phase of the plan where

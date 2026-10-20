@@ -1,0 +1,361 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1720 1860" width="1720" height="1860" role="img" aria-labelledby="ad-title ad-desc">
+  <title id="ad-title">AgentTPACK multi-agent TPACK lesson-planning architecture</title>
+  <desc id="ad-desc">Every layer writes to the interaction logs on the right, under one trace id per lesson. Layer 0: the teacher brief from the web wizard, the NCERT Class 7 vector database and the content policy. Input guardrails in order: well-formed request, keyword safety filter, consistency, retrieval of the top 4 passages, relevance threshold, and a Gemini input screen against the content policy; any failure returns HTTP 422 to the wizard. A rule-based context layer prepares each agent's inputs. Layer 1: PK, CK and TK foundational agents, each seeing only its own domain. Layer 2: PCK combines CK and PK, TPK combines PK and TK, TCK combines CK and TK, each recording trade-offs. Layer 3: the TPACK integrator turns all six outputs and the passages into a schema-checked lesson plan, a Gemini output screen reviews it (rewrite once, then remove flagged items), code-based output checks clean it, and the final lesson plan is produced. Stage 2: the materials agent writes handouts and a quiz, which are screened the same way. The teacher receives the plan, handouts and quiz, can open cited passages, regenerate with missing details, or print a teacher pack.</desc>
+  <defs>
+    <marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3a3a37"/></marker>
+    <marker id="mt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#2e7d6b"/></marker>
+    <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8a887f"/></marker>
+    <marker id="mr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b5432f"/></marker>
+  </defs>
+  <style>
+    text { font-family: Arial, Helvetica, sans-serif; fill: #1d1d1b; }
+    .title { font-size: 31px; font-weight: 700; }
+    .sub { font-size: 16px; fill: #5f5e58; }
+    .band { fill: #f6f5f1; stroke: #d6d3ca; stroke-width: 1.5; }
+    .bl { font-size: 20px; font-weight: 700; }
+    .bs { font-size: 14px; fill: #5f5e58; }
+    .bh { font-size: 18px; font-weight: 700; }
+    .h  { font-size: 17px; font-weight: 700; }
+    .t  { font-size: 15px; }
+    .ts { font-size: 13.5px; }
+    .mu { font-size: 13px; fill: #5f5e58; font-style: italic; }
+    .mono { font-family: Consolas, "Courier New", monospace; font-size: 13px; fill: #4a4944; }
+    .gem { font-size: 13px; font-weight: 700; fill: #3b6fd8; }
+    .lab { font-size: 13px; fill: #4a4944; font-style: italic; }
+    .rej { font-size: 14.5px; fill: #b5432f; font-style: italic; }
+    .bt { font-size: 12px; font-weight: 700; fill: #ffffff; }
+    .e  { fill: none; stroke: #3a3a37; stroke-width: 2; }
+    .et { fill: none; stroke: #2e7d6b; stroke-width: 2; stroke-dasharray: 7 5; }
+    .el { fill: none; stroke: #8a887f; stroke-width: 1.8; stroke-dasharray: 4 4; }
+    .log { fill: #f1efe8; stroke: #8a887f; stroke-width: 1.8; }
+    .er { fill: none; stroke: #b5432f; stroke-width: 2; stroke-dasharray: 7 5; }
+    .white  { fill: #ffffff; stroke: #8a887f; stroke-width: 1.5; }
+    .user   { fill: #e6eef6; stroke: #2f5d8a; stroke-width: 2; }
+    .guard  { fill: #fde9d6; stroke: #d0742c; stroke-width: 2; }
+    .screen { fill: #fbe3e0; stroke: #b5432f; stroke-width: 2.2; }
+    .kb     { fill: #dff1ee; stroke: #2e7d6b; stroke-width: 2; }
+    .ctx    { fill: #eef2f7; stroke: #8fa5bd; stroke-width: 1.5; }
+    .pk     { fill: #fdf3d0; stroke: #c9a227; stroke-width: 2; }
+    .ck     { fill: #e1f2ea; stroke: #2e7d4f; stroke-width: 2; }
+    .tk     { fill: #ece4f6; stroke: #7a4fa0; stroke-width: 2; }
+    .pck    { fill: #fff8e3; stroke: #c9a227; stroke-width: 2; }
+    .tpk    { fill: #e6f4f4; stroke: #2b7a83; stroke-width: 2; }
+    .tck    { fill: #f4effa; stroke: #7a4fa0; stroke-width: 2; }
+    .tpack  { fill: #fffbea; stroke: #a8851a; stroke-width: 2.8; }
+    .out    { fill: #dff1ee; stroke: #2e7d6b; stroke-width: 2.8; }
+    .llm    { fill: #f1efe8; stroke: #8a887f; stroke-width: 1.8; stroke-dasharray: 7 5; }
+  </style>
+
+  <rect width="1720" height="1860" fill="#ffffff"/>
+  <text class="title" x="860" y="50" text-anchor="middle">AGENTTPACK — MULTI-AGENT TPACK LESSON-PLANNING ARCHITECTURE</text>
+  <text class="sub" x="860" y="80" text-anchor="middle">NCERT Science Class 7 · 7 TPACK agents + 2 Gemini screening agents · every lesson grounded in cited textbook passages</text>
+
+  <!-- ================= LAYER 0 ================= -->
+  <rect class="band" x="40" y="105" width="1520" height="235" rx="6"/>
+  <text class="bl" x="60" y="135">LAYER 0 – INPUTS &amp; KNOWLEDGE SOURCES</text>
+
+  <rect class="white" x="60" y="150" width="760" height="175" rx="4"/>
+  <text class="bh" x="440" y="176" text-anchor="middle">TEACHER BRIEF  (web wizard, 3 steps)</text>
+  <text class="h" x="80" y="204">Content</text>
+  <text class="t" x="80" y="228">• NCERT chapter (1–18)</text>
+  <text class="t" x="80" y="250">• Topic / concept</text>
+  <text class="t" x="80" y="272">• Duration (10–180 min)</text>
+  <text class="h" x="310" y="204">Learners &amp; pedagogy</text>
+  <text class="t" x="310" y="228">• Class size, prior knowledge</text>
+  <text class="t" x="310" y="250">• Method: 5E, inquiry, direct…</text>
+  <text class="t" x="310" y="272">• Bloom's focus, format</text>
+  <text class="t" x="310" y="294">• Language, accessibility</text>
+  <text class="t" x="310" y="316">• Continuity, other requests</text>
+  <text class="h" x="570" y="204">Technology</text>
+  <text class="t" x="570" y="228">• Setup, devices, internet</text>
+  <text class="t" x="570" y="250">• Projector, board type</text>
+  <text class="t" x="570" y="272">• Tools &amp; physical materials</text>
+  <text class="t" x="570" y="294">• Comfort, budget, policy</text>
+
+  <path class="kb" d="M860 166 a165 16 0 0 0 330 0 a165 16 0 0 0 -330 0 V306 a165 16 0 0 0 330 0 V166"/>
+  <path d="M860 166 a165 16 0 0 0 330 0" fill="none" stroke="#2e7d6b" stroke-width="2"/>
+  <text class="bh" x="1025" y="220" text-anchor="middle">NCERT VECTOR DB</text>
+  <text class="t" x="1025" y="248" text-anchor="middle">Science Class 7 · 18 chapters</text>
+  <text class="t" x="1025" y="270" text-anchor="middle">~1000-char chunks · MiniLM</text>
+  <text class="t" x="1025" y="292" text-anchor="middle">ChromaDB (local)</text>
+
+  <rect class="screen" x="1230" y="150" width="310" height="175" rx="4"/>
+  <text class="bh" x="1385" y="176" text-anchor="middle">CONTENT POLICY</text>
+  <text class="t" x="1248" y="216">• no harmful, offensive, unethical,</text>
+  <text class="t" x="1248" y="238">  illegal or out-of-scope content</text>
+  <text class="t" x="1248" y="266">• judge intent &amp; target, not words</text>
+  <text class="t" x="1248" y="294">• given to every agent</text>
+
+  <!-- ================= INPUT GUARDRAILS ================= -->
+  <rect class="band" x="40" y="355" width="1520" height="190" rx="6"/>
+  <text class="bl" x="60" y="395">INPUT</text>
+  <text class="bl" x="60" y="420">GUARDRAILS</text>
+  <text class="bs" x="60" y="446">checked in this order,</text>
+  <text class="bs" x="60" y="466">before any lesson is</text>
+  <text class="bs" x="60" y="486">written</text>
+
+  <path class="e" d="M395 325 V406" marker-end="url(#m)"/>
+  <text class="lab" x="403" y="351">teacher submits</text>
+
+  <rect class="guard" x="300" y="408" width="190" height="80" rx="6"/>
+  <text class="h" x="395" y="433" text-anchor="middle">Well-formed?</text>
+  <text class="ts" x="395" y="455" text-anchor="middle">types · options · limits</text>
+  <text class="ts" x="395" y="474" text-anchor="middle">text cleaned</text>
+
+  <rect class="guard" x="510" y="408" width="190" height="80" rx="6"/>
+  <text class="h" x="605" y="433" text-anchor="middle">Safe text?</text>
+  <text class="ts" x="605" y="455" text-anchor="middle">keyword filter for</text>
+  <text class="ts" x="605" y="474" text-anchor="middle">injection &amp; unsafe words</text>
+
+  <rect class="guard" x="720" y="408" width="190" height="80" rx="6"/>
+  <text class="h" x="815" y="433" text-anchor="middle">Consistent?</text>
+  <text class="ts" x="815" y="455" text-anchor="middle">no contradictory</text>
+  <text class="ts" x="815" y="474" text-anchor="middle">classroom details</text>
+
+  <rect class="kb" x="930" y="408" width="190" height="80" rx="6"/>
+  <text class="h" x="1025" y="433" text-anchor="middle">Retrieve passages</text>
+  <text class="ts" x="1025" y="455" text-anchor="middle">top 4 in the chosen</text>
+  <text class="ts" x="1025" y="474" text-anchor="middle">chapter</text>
+
+  <rect class="guard" x="1140" y="408" width="190" height="80" rx="6"/>
+  <text class="h" x="1235" y="433" text-anchor="middle">In this chapter?</text>
+  <text class="ts" x="1235" y="455" text-anchor="middle">closest passage</text>
+  <text class="ts" x="1235" y="474" text-anchor="middle">distance ≤ 0.80</text>
+
+  <rect class="screen" x="1350" y="408" width="190" height="80" rx="6"/>
+  <text class="h" x="1445" y="430" text-anchor="middle">Input screen</text>
+  <text class="gem" x="1445" y="448" text-anchor="middle">Gemini</text>
+  <text class="ts" x="1445" y="467" text-anchor="middle">every field vs</text>
+  <text class="ts" x="1445" y="483" text-anchor="middle">content policy</text>
+
+  <path class="e" d="M490 448 H508" marker-end="url(#m)"/>
+  <path class="e" d="M700 448 H718" marker-end="url(#m)"/>
+  <path class="e" d="M910 448 H928" marker-end="url(#m)"/>
+  <path class="e" d="M1120 448 H1138" marker-end="url(#m)"/>
+  <path class="e" d="M1330 448 H1348" marker-end="url(#m)"/>
+
+  <path class="et" d="M1025 322 V406" marker-end="url(#mt)"/>
+  <text class="lab" x="1033" y="380">vector search</text>
+  <path class="er" d="M1445 325 V406" marker-end="url(#mr)"/>
+  <text class="lab" x="1453" y="380">policy</text>
+
+  <text class="rej" x="300" y="526">✗ any check fails → back to the wizard with the field highlighted, nothing generated</text>
+
+  <!-- ================= CONTEXT LAYER ================= -->
+  <rect class="ctx" x="40" y="565" width="1520" height="60" rx="6"/>
+  <text class="bh" x="60" y="601">CONTEXT LAYER</text>
+  <text class="t" x="300" y="601">rule-based: readable labels · “Not specified” defaults · classroom summary · per-agent slices</text>
+  <path class="e" d="M1445 488 V563" marker-end="url(#m)"/>
+  <text class="lab" x="1453" y="534">allow</text>
+
+  <!-- ================= LAYER 1 ================= -->
+  <rect class="band" x="40" y="645" width="1520" height="185" rx="6"/>
+  <text class="bl" x="60" y="682">LAYER 1</text>
+  <text class="bl" x="60" y="707">FOUNDATIONAL</text>
+  <text class="bs" x="60" y="733">each agent sees only</text>
+  <text class="bs" x="60" y="753">its own domain</text>
+
+  <rect class="pk" x="300" y="668" width="380" height="142" rx="6"/>
+  <text class="bh" x="490" y="698" text-anchor="middle">PK Agent</text>
+  <text class="gem" x="668" y="690" text-anchor="end">Gemini</text>
+  <text class="t" x="490" y="726" text-anchor="middle">phases · grouping · assessment</text>
+  <text class="t" x="490" y="749" text-anchor="middle">feasibility notes · missing inputs</text>
+  <text class="mu" x="490" y="789" text-anchor="middle">sees: learners + method only</text>
+
+  <rect class="ck" x="730" y="668" width="380" height="142" rx="6"/>
+  <text class="bh" x="920" y="698" text-anchor="middle">CK Agent</text>
+  <text class="gem" x="1098" y="690" text-anchor="end">Gemini</text>
+  <text class="t" x="920" y="726" text-anchor="middle">concepts · teaching order</text>
+  <text class="t" x="920" y="749" text-anchor="middle">misconceptions · coverage gaps</text>
+  <text class="mu" x="920" y="789" text-anchor="middle">sees: textbook passages only</text>
+
+  <rect class="tk" x="1160" y="668" width="380" height="142" rx="6"/>
+  <text class="bh" x="1350" y="698" text-anchor="middle">TK Agent</text>
+  <text class="gem" x="1528" y="690" text-anchor="end">Gemini</text>
+  <text class="t" x="1350" y="726" text-anchor="middle">tools · capabilities · tool status</text>
+  <text class="t" x="1350" y="749" text-anchor="middle">constraints · missing inputs</text>
+  <text class="mu" x="1350" y="789" text-anchor="middle">sees: classroom setup only</text>
+
+  <path class="e" d="M490 625 V666" marker-end="url(#m)"/>
+  <path class="e" d="M840 625 V666" marker-end="url(#m)"/>
+  <path class="e" d="M1290 625 V666" marker-end="url(#m)"/>
+  <path class="et" d="M1095 488 V666" marker-end="url(#mt)"/>
+  <text class="lab" x="1103" y="550" style="fill:#2e7d6b">passages</text>
+  <circle cx="512" cy="646" r="13" fill="#1d1d1b"/><text class="bt" x="512" y="650" text-anchor="middle">1a</text>
+  <circle cx="862" cy="646" r="13" fill="#1d1d1b"/><text class="bt" x="862" y="650" text-anchor="middle">1b</text>
+  <circle cx="1312" cy="646" r="13" fill="#1d1d1b"/><text class="bt" x="1312" y="650" text-anchor="middle">1c</text>
+
+  <!-- ================= LAYER 2 ================= -->
+  <rect class="band" x="40" y="845" width="1520" height="195" rx="6"/>
+  <text class="bl" x="60" y="925">LAYER 2</text>
+  <text class="bl" x="60" y="950">PAIRWISE</text>
+  <text class="bl" x="60" y="975">SYNTHESIS</text>
+  <text class="bs" x="60" y="1001">each combines two and</text>
+  <text class="bs" x="60" y="1021">records its trade-offs</text>
+
+  <path class="e" d="M440 810 V903" marker-end="url(#m)"/>
+  <path class="e" d="M780 810 V860 H600 V903" marker-end="url(#m)"/>
+  <path class="e" d="M620 810 V854 a6 6 0 0 1 0 12 V880 H820 V903" marker-end="url(#m)"/>
+  <path class="e" d="M1060 810 V860 H1240 V903" marker-end="url(#m)"/>
+  <path class="e" d="M1200 810 V854 a6 6 0 0 1 0 12 V880 H1020 V903" marker-end="url(#m)"/>
+  <path class="e" d="M1400 810 V903" marker-end="url(#m)"/>
+  <circle cx="465" cy="886" r="13" fill="#1d1d1b"/><text class="bt" x="465" y="890" text-anchor="middle">2a</text>
+  <circle cx="920" cy="893" r="13" fill="#1d1d1b"/><text class="bt" x="920" y="897" text-anchor="middle">2b</text>
+  <circle cx="1425" cy="886" r="13" fill="#1d1d1b"/><text class="bt" x="1425" y="890" text-anchor="middle">2c</text>
+
+  <rect class="pck" x="300" y="905" width="380" height="110" rx="6"/>
+  <text class="bh" x="490" y="933" text-anchor="middle">PCK</text>
+  <text class="gem" x="668" y="925" text-anchor="end">Gemini</text>
+  <text class="t" x="490" y="957" text-anchor="middle">how to teach THIS content</text>
+  <text class="ts" x="490" y="979" text-anchor="middle">content → each PK phase · content gaps</text>
+  <text class="mu" x="490" y="1001" text-anchor="middle">CK + PK + passages</text>
+
+  <rect class="tpk" x="730" y="905" width="380" height="110" rx="6"/>
+  <text class="bh" x="920" y="933" text-anchor="middle">TPK</text>
+  <text class="gem" x="1098" y="925" text-anchor="end">Gemini</text>
+  <text class="t" x="920" y="957" text-anchor="middle">how tools support THIS method</text>
+  <text class="ts" x="920" y="979" text-anchor="middle">tool → each PK phase · fallback</text>
+  <text class="mu" x="920" y="1001" text-anchor="middle">PK + TK</text>
+
+  <rect class="tck" x="1160" y="905" width="380" height="110" rx="6"/>
+  <text class="bh" x="1350" y="933" text-anchor="middle">TCK</text>
+  <text class="gem" x="1528" y="925" text-anchor="end">Gemini</text>
+  <text class="t" x="1350" y="957" text-anchor="middle">what a tool shows THIS content</text>
+  <text class="ts" x="1350" y="979" text-anchor="middle">concept → representation · fallback</text>
+  <text class="mu" x="1350" y="1001" text-anchor="middle">CK + TK + passages</text>
+
+  <!-- ================= LAYER 3 ================= -->
+  <rect class="band" x="40" y="1060" width="1520" height="445" rx="6"/>
+  <text class="bl" x="60" y="1098">LAYER 3</text>
+  <text class="bl" x="60" y="1123">INTEGRATION &amp;</text>
+  <text class="bl" x="60" y="1148">OUTPUT</text>
+  <text class="mu" x="60" y="1200" style="font-size:15px">seven JSON documents,</text>
+  <text class="mu" x="60" y="1222" style="font-size:15px">not paragraphs of prose —</text>
+  <text class="mu" x="60" y="1244" style="font-size:15px">the schemas are the contract</text>
+  <text class="mu" x="60" y="1300" style="font-size:15px">every generated output is</text>
+  <text class="mu" x="60" y="1322" style="font-size:15px">screened before the teacher</text>
+  <text class="mu" x="60" y="1344" style="font-size:15px">sees it</text>
+
+  <path class="e" d="M490 1015 V1085 H700 V1108" marker-end="url(#m)"/>
+  <path class="e" d="M920 1015 V1108" marker-end="url(#m)"/>
+  <path class="e" d="M1350 1015 V1085 H1140 V1108" marker-end="url(#m)"/>
+  <circle cx="900" cy="1072" r="13" fill="#1d1d1b"/><text class="bt" x="900" y="1076" text-anchor="middle">3</text>
+  <text class="lab" x="930" y="1073">all six outputs + passages</text>
+
+  <rect class="tpack" x="620" y="1110" width="600" height="90" rx="6"/>
+  <text class="bh" x="920" y="1140" text-anchor="middle">TPACK INTEGRATOR</text>
+  <text class="gem" x="1208" y="1132" text-anchor="end">Gemini</text>
+  <text class="t" x="920" y="1166" text-anchor="middle">all six JSON outputs + passages → timed lesson plan</text>
+  <text class="mu" x="920" y="1189" text-anchor="middle">output format checked · design decisions recorded</text>
+  <path class="e" d="M920 1200 V1233" marker-end="url(#m)"/>
+  <circle cx="900" cy="1217" r="13" fill="#1d1d1b"/><text class="bt" x="900" y="1221" text-anchor="middle">4</text>
+
+  <rect class="screen" x="620" y="1235" width="600" height="75" rx="6"/>
+  <text class="bh" x="920" y="1261" text-anchor="middle">OUTPUT SCREEN</text>
+  <text class="gem" x="1208" y="1255" text-anchor="end">Gemini</text>
+  <text class="t" x="920" y="1283" text-anchor="middle">lesson plan checked against the content policy</text>
+  <text class="ts" x="920" y="1302" text-anchor="middle">flagged → TPACK rewrites once → still flagged → items removed + warning</text>
+  <path class="er" d="M1220 1272 H1262 V1155 H1224" marker-end="url(#mr)"/>
+  <text class="lab" x="1270" y="1206">rewrite once</text>
+  <text class="lab" x="1270" y="1222">with findings</text>
+  <path class="e" d="M920 1310 V1333" marker-end="url(#m)"/>
+  <circle cx="900" cy="1322" r="13" fill="#1d1d1b"/><text class="bt" x="900" y="1326" text-anchor="middle">5</text>
+
+  <rect class="guard" x="620" y="1335" width="600" height="75" rx="6"/>
+  <text class="h" x="920" y="1359" text-anchor="middle">OUTPUT CHECKS (automatic)</text>
+  <text class="ts" x="920" y="1380" text-anchor="middle">invented citations removed · ids scrubbed · minutes = duration?</text>
+  <text class="ts" x="920" y="1399" text-anchor="middle">uncovered content listed · missing-detail questions · re-validated</text>
+  <path class="e" d="M920 1410 V1433" marker-end="url(#m)"/>
+
+  <rect class="out" x="620" y="1435" width="600" height="55" rx="6"/>
+  <text class="bh" x="920" y="1459" text-anchor="middle">FINAL LESSON PLAN</text>
+  <text class="ts" x="920" y="1479" text-anchor="middle">steps · board notes · questions · misconceptions · cited sources</text>
+
+  <rect class="llm" x="1300" y="1330" width="240" height="122" rx="8"/>
+  <text class="h" x="1420" y="1357" text-anchor="middle">GEMINI LLM</text>
+  <text class="ts" x="1420" y="1380" text-anchor="middle">every agent = 1 call</text>
+  <text class="ts" x="1420" y="1400" text-anchor="middle">structured JSON output</text>
+  <text class="ts" x="1420" y="1420" text-anchor="middle">retries + fallback models</text>
+  <text class="ts" x="1420" y="1440" text-anchor="middle">≈ 9 calls per plan</text>
+
+  <!-- ================= STAGE 2 ================= -->
+  <rect class="band" x="40" y="1520" width="1520" height="130" rx="6"/>
+  <text class="bl" x="60" y="1556">STAGE 2</text>
+  <text class="bl" x="60" y="1581">MATERIALS</text>
+  <text class="bs" x="60" y="1606">separate request,</text>
+  <text class="bs" x="60" y="1626">same trace id</text>
+
+  <path class="e" d="M730 1490 V1553" marker-end="url(#m)"/>
+  <circle cx="752" cy="1512" r="13" fill="#1d1d1b"/><text class="bt" x="752" y="1516" text-anchor="middle">6</text>
+  <text class="lab" x="772" y="1517">plan sent back</text>
+
+  <rect class="pck" x="600" y="1555" width="260" height="75" rx="6"/>
+  <text class="h" x="715" y="1580" text-anchor="middle">MATERIALS</text>
+  <text class="gem" x="850" y="1572" text-anchor="end">Gemini</text>
+  <text class="ts" x="730" y="1601" text-anchor="middle">plan + passages → sheets &amp; quiz</text>
+  <text class="mu" x="730" y="1620" text-anchor="middle">quiz answer must be an option</text>
+  <path class="e" d="M860 1592 H898" marker-end="url(#m)"/>
+
+  <rect class="screen" x="900" y="1555" width="260" height="75" rx="6"/>
+  <text class="h" x="1030" y="1580" text-anchor="middle">Output screen</text>
+  <text class="gem" x="1150" y="1572" text-anchor="end">Gemini</text>
+  <text class="ts" x="1030" y="1602" text-anchor="middle">same rewrite / remove rules</text>
+  <path class="e" d="M1160 1592 H1198" marker-end="url(#m)"/>
+
+  <rect class="out" x="1200" y="1555" width="340" height="75" rx="6"/>
+  <text class="h" x="1370" y="1580" text-anchor="middle">HANDOUTS &amp; EXIT-TICKET QUIZ</text>
+  <text class="ts" x="1370" y="1601" text-anchor="middle">printable sheets · MCQ answer key</text>
+  <text class="mu" x="1370" y="1620" text-anchor="middle">plan is kept if this step fails</text>
+
+  <!-- ================= TEACHER ================= -->
+  <rect class="band" x="40" y="1665" width="1520" height="95" rx="6"/>
+  <text class="bl" x="60" y="1704">TEACHER</text>
+  <text class="bl" x="60" y="1729">RECEIVES</text>
+
+  <path class="e" d="M620 1470 H575 V1686" marker-end="url(#m)"/>
+  <path class="e" d="M1370 1630 V1686" marker-end="url(#m)"/>
+
+  <rect class="user" x="300" y="1688" width="295" height="57" rx="6"/>
+  <text class="h" x="447" y="1712" text-anchor="middle" style="font-size:15px">Plan · Handouts · Quiz tabs</text>
+  <text class="mu" x="447" y="1733" text-anchor="middle">warnings · why the plan looks this way</text>
+  <rect class="user" x="615" y="1688" width="295" height="57" rx="6"/>
+  <text class="h" x="762" y="1712" text-anchor="middle" style="font-size:15px">Citation → NCERT passage</text>
+  <text class="mu" x="762" y="1733" text-anchor="middle">looked up by id, format checked</text>
+  <rect class="user" x="930" y="1688" width="295" height="57" rx="6"/>
+  <text class="h" x="1077" y="1712" text-anchor="middle" style="font-size:15px">Answer a missing detail</text>
+  <text class="mu" x="1077" y="1733" text-anchor="middle">↺ regenerates from the start</text>
+  <rect class="user" x="1245" y="1688" width="295" height="57" rx="6"/>
+  <text class="h" x="1392" y="1712" text-anchor="middle" style="font-size:15px">Teacher pack</text>
+  <text class="mu" x="1392" y="1733" text-anchor="middle">print or save as PDF</text>
+
+  <!-- ================= LEGEND ================= -->
+  <rect x="40" y="1780" width="1640" height="56" rx="6" fill="#ffffff" stroke="#d6d3ca" stroke-width="1.5"/>
+  <text class="h" x="60" y="1814" style="font-size:15px">LEGEND</text>
+  <rect class="user"   x="140" y="1801" width="22" height="16" rx="3"/><text class="ts" x="170" y="1814">teacher</text>
+  <rect class="guard"  x="240" y="1801" width="22" height="16" rx="3"/><text class="ts" x="270" y="1814">rule-based check</text>
+  <rect class="screen" x="400" y="1801" width="22" height="16" rx="3"/><text class="ts" x="430" y="1814">screening / policy</text>
+  <rect class="tk"     x="575" y="1801" width="22" height="16" rx="3"/><text class="ts" x="605" y="1814">TPACK agent (Gemini)</text>
+  <rect class="kb"     x="770" y="1801" width="22" height="16" rx="3"/><text class="ts" x="800" y="1814">knowledge / output</text>
+  <rect class="llm"    x="950" y="1801" width="22" height="16" rx="3"/><text class="ts" x="980" y="1814">external service</text>
+  <path class="e"  d="M1110 1809 H1144" marker-end="url(#m)"/><text class="ts" x="1152" y="1814">data flow</text>
+  <path class="et" d="M1228 1809 H1262" marker-end="url(#mt)"/><text class="ts" x="1270" y="1814">retrieval</text>
+  <path class="er" d="M1340 1809 H1374" marker-end="url(#mr)"/><text class="ts" x="1382" y="1814">policy / reject path</text>
+
+
+  <!-- ================= INTERACTION LOGS (every layer writes here) ================= -->
+  <rect class="log" x="1585" y="105" width="95" height="1655" rx="8"/>
+  <path d="M1600 125 a32.5 8 0 0 0 65 0 a32.5 8 0 0 0 -65 0 V170 a32.5 8 0 0 0 65 0 V125" fill="#ffffff" stroke="#8a887f" stroke-width="1.6"/>
+  <path d="M1600 125 a32.5 8 0 0 0 65 0" fill="none" stroke="#8a887f" stroke-width="1.6"/>
+  <text class="ts" x="1632" y="157" text-anchor="middle" style="font-weight:700">LOGS</text>
+  <text class="bh" x="1622" y="960" text-anchor="middle" transform="rotate(-90 1622 960)">INTERACTION LOGS — every step saved under one id per lesson</text>
+  <text class="ts" x="1652" y="960" text-anchor="middle" transform="rotate(-90 1652 960)">requests · checks · agent hand-offs · trade-offs · screening results · timings · errors</text>
+  <path class="el" d="M1562 222 H1583" marker-end="url(#mg)"/>
+  <path class="el" d="M1562 450 H1583" marker-end="url(#mg)"/>
+  <path class="el" d="M1562 595 H1583" marker-end="url(#mg)"/>
+  <path class="el" d="M1562 737 H1583" marker-end="url(#mg)"/>
+  <path class="el" d="M1562 942 H1583" marker-end="url(#mg)"/>
+  <path class="el" d="M1562 1282 H1583" marker-end="url(#mg)"/>
+  <path class="el" d="M1562 1585 H1583" marker-end="url(#mg)"/>
+  <path class="el" d="M1562 1712 H1583" marker-end="url(#mg)"/>
+  <path class="el" d="M1535 1809 H1569" marker-end="url(#mg)"/><text class="ts" x="1577" y="1814">saved to log</text>
+</svg>

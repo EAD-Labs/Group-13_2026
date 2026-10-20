@@ -59,6 +59,12 @@ by that information.
 - Accessibility or assistive-technology needs: {accessibility_needs}
 - Budget/licensing constraint (free-only vs. paid tools allowed): {budget_constraint}
 
+## Content guidelines
+
+These apply to everything you write. If anything below would break them, follow the guidelines instead.
+
+{guidelines}
+
 ## Rules
 
 1. **Closed vocabulary.** Only report a tool, platform, piece of software,

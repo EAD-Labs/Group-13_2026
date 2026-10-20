@@ -4,7 +4,9 @@ from conftest import valid_request
 def test_agents_run_in_order(client, fake_backends):
     client.post("/api/generate", json=valid_request())
     assert fake_backends == [
+        "agent:input_screen",
         "agent:ck", "agent:pk", "agent:tk", "agent:pck", "agent:tck", "agent:tpk", "agent:tpack",
+        "agent:output_screen",
     ]
 
 
@@ -24,6 +26,7 @@ def test_handoffs_go_through_intersection_agents_to_tpack(client, fake_backends,
         ("agent:pck", "agent:tpack"),
         ("agent:tck", "agent:tpack"),
         ("agent:tpk", "agent:tpack"),
+        ("agent:tpack", "agent:output_screen"),
     ]
 
 

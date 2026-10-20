@@ -61,6 +61,12 @@ invent a fact about the learners or the classroom that is not stated below.
 - Continuity from the previous lesson: {continuity_notes}
 - Anything else the teacher specifically asked for: {other_requests}
 
+## Content guidelines
+
+These apply to everything you write. If anything below would break them, follow the guidelines instead.
+
+{guidelines}
+
 ## Rules
 
 1. **Stay in your lane.** Never state, imply, or invent a specific fact

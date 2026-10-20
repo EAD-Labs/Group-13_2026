@@ -1,11 +1,15 @@
 """Multi-agent TPACK pipeline.
 
 Stage 1, POST /api/generate (run_pipeline):
-    validate -> retrieve -> CK -> PK -> TK -> PCK -> TCK -> TPK
-             -> TPACK integrator -> LessonPlan
+    validate -> retrieve -> input screen -> CK -> PK -> TK -> PCK -> TCK -> TPK
+             -> TPACK integrator -> output screen -> LessonPlan
 
 Stage 2, POST /api/materials (run_materials):
-    validate -> retrieve -> materials agent (given the plan) -> LessonMaterials
+    validate -> retrieve -> materials agent (given the plan) -> output screen
+             -> LessonMaterials
+
+The screens (screening.py) check the teacher's input and each generated
+output against prompts/guidelines.md, which every agent also receives.
 
 CK, PK and TK are foundational agents that never see each other's output.
 The intersection agents each combine two of them (PCK: CK+PK, TCK: CK+TK,
@@ -24,6 +28,7 @@ from errors import AgentOutputError
 from lesson_schema import LessonMaterials, LessonPlan
 from logging_setup import current_trace_id, log_event
 from retrieval import format_chunks, retrieve
+from screening import REMOVED_WARNING, screen_input, screen_output
 from validation import chapter_name, check_consistency, check_relevance, check_safety
 
 import config
@@ -162,7 +167,9 @@ def run_pipeline(req):
     retrieved_ids = [c["id"] for c in chunks]
     formatted_chunks = format_chunks(chunks)
 
-    steps = []
+    # Gemini checks everything the teacher typed against the guidelines;
+    # raises ContentFlaggedError before any lesson agent runs.
+    steps = [screen_input(safety_fields(req), content.grade, chapter)]
 
     ck, step = run_agent(
         CK,
@@ -270,22 +277,28 @@ def run_pipeline(req):
     steps.append(step)
     _log_decisions(TPK, tpk.get("trade_offs"))
 
-    plan, step = run_agent(
-        TPACK,
-        {
-            "grade": content.grade,
-            "chapter": chapter,
-            "topic": content.topic,
-            "duration": content.duration,
-            "method": METHOD_LABELS[pedagogy.method],
-            "blooms_focus": BLOOMS_LABELS[pedagogy.blooms_focus],
-            "classroom": _classroom_summary(req),
-            "tools": _or_ns(tech.tools),
-            "chunks": formatted_chunks,
-        },
-        upstream={"ck": ck, "pk": pk, "tk": tk, "pck": pck, "tck": tck, "tpk": tpk},
-    )
+    tpack_inputs = {
+        "grade": content.grade,
+        "chapter": chapter,
+        "topic": content.topic,
+        "duration": content.duration,
+        "method": METHOD_LABELS[pedagogy.method],
+        "blooms_focus": BLOOMS_LABELS[pedagogy.blooms_focus],
+        "classroom": _classroom_summary(req),
+        "tools": _or_ns(tech.tools),
+        "chunks": formatted_chunks,
+    }
+    tpack_upstream = {"ck": ck, "pk": pk, "tk": tk, "pck": pck, "tck": tck, "tpk": tpk}
+    plan, step = run_agent(TPACK, tpack_inputs, upstream=tpack_upstream)
     steps.append(step)
+
+    plan, removed_content = screen_output(
+        TPACK, plan, steps,
+        schema=LessonPlan, grade=content.grade, topic=content.topic, kind="lesson plan",
+        regenerate=lambda note: run_agent(TPACK, tpack_inputs, upstream=tpack_upstream, note=note),
+    )
+    if removed_content:
+        warnings.append(REMOVED_WARNING)
     _log_decisions(TPACK, plan.get("design_decisions"))
 
     removed_references = _strip_invalid_citations(plan, retrieved_ids)
@@ -345,27 +358,34 @@ def run_materials(req, plan):
     check_safety(safety_fields(req))
     chunks = _retrieve_for(req)
 
-    materials, step = run_agent(
-        MATERIALS,
-        {
-            "grade": req.content.grade,
-            "topic": req.content.topic,
-            "blooms_focus": BLOOMS_LABELS[req.pedagogy.blooms_focus],
-            "chunks": format_chunks(chunks),
-        },
-        upstream={"tpack": plan},
+    materials_inputs = {
+        "grade": req.content.grade,
+        "topic": req.content.topic,
+        "blooms_focus": BLOOMS_LABELS[req.pedagogy.blooms_focus],
+        "chunks": format_chunks(chunks),
+    }
+    materials, step = run_agent(MATERIALS, materials_inputs, upstream={"tpack": plan})
+    steps = [step]
+
+    materials, removed_content = screen_output(
+        MATERIALS, materials, steps,
+        schema=LessonMaterials, grade=req.content.grade, topic=req.content.topic, kind="handouts and exit-ticket quiz",
+        regenerate=lambda note: run_agent(MATERIALS, materials_inputs, upstream={"tpack": plan}, note=note),
     )
+    warnings = [REMOVED_WARNING] if removed_content else []
+
     _scrub_ids_from_text(materials)
     try:
         materials = LessonMaterials.model_validate(materials).model_dump()
     except ValidationError as e:
         log_event("agent.error", "agent:materials", reason="postprocess_invalid", error=str(e)[:1000])
         raise AgentOutputError("The handouts and quiz came back incomplete. Please try again.") from e
-    _log_stage_done("materials.done", [step], {"materials": materials})
+    _log_stage_done("materials.done", steps, {"materials": materials}, warnings=warnings)
     return {
         "trace_id": current_trace_id(),
         "materials": materials,
-        "agent_sequence": [{"seq": 1, **step}],
+        "warnings": warnings,
+        "agent_sequence": [{"seq": i + 1, **s} for i, s in enumerate(steps)],
     }
 
 

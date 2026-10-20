@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1880 800" width="1880" height="800" role="img" aria-labelledby="pf-title pf-desc">
+  <title id="pf-title">AgentTPACK system overview</title>
+  <desc id="pf-desc">A teacher describes a lesson. Input guardrails check the request is well-formed, safe, consistent and covered by the textbook; rejected requests go back to the teacher. Relevant passages are retrieved from the NCERT Class 7 textbook. A multi-agent TPACK core runs three foundational agents (content, pedagogy, technology), three intersection agents (PCK, TCK, TPK) and a TPACK integrator, all using the Gemini LLM. Output checks validate the format, the citations and the timing. The teacher receives a cited lesson plan, handouts, an exit-ticket quiz and the design trade-offs, and can open sources or answer missing details to regenerate. Every step is traced for audit.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#4a4944"/></marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b5432f"/></marker>
+    <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#2f5d8a"/></marker>
+    <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#7a4fa0"/></marker>
+  </defs>
+  <style>
+    text { font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #1d1d1b; }
+    .h  { font-size: 22px; font-weight: 700; }
+    .b  { font-size: 18px; }
+    .sm { font-size: 15px; fill: #5f5e58; font-style: italic; }
+    .tier { font-size: 15px; font-weight: 700; fill: #7a4fa0; letter-spacing: 0.06em; }
+    .ag { font-size: 22px; font-weight: 700; }
+    .ags { font-size: 15px; fill: #4a4944; }
+    .badge-t { font-size: 18px; font-weight: 700; fill: #ffffff; }
+    .flow { fill: none; stroke: #4a4944; stroke-width: 3; }
+    .ae { fill: none; stroke: #7a4fa0; stroke-width: 2; }
+    .rej { fill: none; stroke: #b5432f; stroke-width: 2.5; stroke-dasharray: 8 6; }
+    .fb { fill: none; stroke: #2f5d8a; stroke-width: 2.5; stroke-dasharray: 8 6; }
+  </style>
+
+  <rect width="1880" height="800" fill="#ffffff"/>
+
+  <!-- feedback loop (top) -->
+  <path class="fb" d="M1735 200 V70 H145 V216" marker-end="url(#ab)"/>
+  <text x="940" y="58" text-anchor="middle" style="font-size:17px;fill:#2f5d8a;font-weight:600">Teacher reviews: opens the cited textbook passages · answers missing details to regenerate</text>
+
+  <!-- 1 Teacher -->
+  <rect x="40" y="220" width="210" height="220" rx="16" fill="#e6eef6" stroke="#2f5d8a" stroke-width="2.5"/>
+  <text class="h" x="145" y="266" text-anchor="middle">Teacher input</text>
+  <text class="b" x="145" y="306" text-anchor="middle">topic &amp; chapter</text>
+  <text class="b" x="145" y="336" text-anchor="middle">learners &amp; method</text>
+  <text class="b" x="145" y="366" text-anchor="middle">classroom tech</text>
+  <text class="sm" x="145" y="406" text-anchor="middle">web wizard</text>
+
+  <!-- 2 Input guardrails -->
+  <rect x="300" y="220" width="210" height="220" rx="16" fill="#fdf3e2" stroke="#c98a1b" stroke-width="2.5"/>
+  <text class="h" x="405" y="266" text-anchor="middle" style="font-size:21px">Input guardrails</text>
+  <text class="b" x="405" y="306" text-anchor="middle">✓ well-formed</text>
+  <text class="b" x="405" y="336" text-anchor="middle">✓ safe text</text>
+  <text class="b" x="405" y="366" text-anchor="middle">✓ consistent</text>
+  <text class="b" x="405" y="396" text-anchor="middle">✓ in textbook</text>
+
+  <!-- reject loop -->
+  <path class="rej" d="M405 440 V500 H145 V444" marker-end="url(#ar)"/>
+  <text x="275" y="528" text-anchor="middle" style="font-size:16px;fill:#b5432f;font-style:italic">rejected → teacher fixes the highlighted field</text>
+
+  <!-- 3 Textbook -->
+  <path d="M560 232 a100 20 0 0 0 200 0 a100 20 0 0 0 -200 0 V428 a100 20 0 0 0 200 0 V232" fill="#f1efe8" stroke="#8a887f" stroke-width="2.5"/>
+  <path d="M560 232 a100 20 0 0 0 200 0" fill="none" stroke="#8a887f" stroke-width="2.5"/>
+  <text class="h" x="660" y="292" text-anchor="middle" style="font-size:21px">NCERT textbook</text>
+  <text class="b" x="660" y="328" text-anchor="middle">Class 7 · 18 chapters</text>
+  <text class="b" x="660" y="358" text-anchor="middle">vector search</text>
+  <text class="b" x="660" y="388" text-anchor="middle">→ top-4 passages</text>
+
+  <!-- 4 Agents panel -->
+  <rect x="810" y="110" width="520" height="460" rx="18" fill="#f7f3fb" stroke="#7a4fa0" stroke-width="2.5"/>
+  <text class="h" x="1070" y="146" text-anchor="middle" style="font-size:21px">Multi-agent TPACK core</text>
+  <text class="tier" x="895"  y="182" text-anchor="middle">FOUNDATIONAL</text>
+  <text class="tier" x="1075" y="182" text-anchor="middle">INTERSECTIONS</text>
+  <text class="tier" x="1245" y="182" text-anchor="middle">INTEGRATION</text>
+
+  <rect x="830" y="195" width="130" height="70" rx="10" fill="#efe8f6" stroke="#7a4fa0" stroke-width="2"/>
+  <text class="ag"  x="895" y="226" text-anchor="middle">CK</text>
+  <text class="ags" x="895" y="250" text-anchor="middle">content</text>
+  <rect x="830" y="305" width="130" height="70" rx="10" fill="#efe8f6" stroke="#7a4fa0" stroke-width="2"/>
+  <text class="ag"  x="895" y="336" text-anchor="middle">PK</text>
+  <text class="ags" x="895" y="360" text-anchor="middle">pedagogy</text>
+  <rect x="830" y="415" width="130" height="70" rx="10" fill="#efe8f6" stroke="#7a4fa0" stroke-width="2"/>
+  <text class="ag"  x="895" y="446" text-anchor="middle">TK</text>
+  <text class="ags" x="895" y="470" text-anchor="middle">technology</text>
+
+  <rect x="1010" y="195" width="130" height="70" rx="10" fill="#efe8f6" stroke="#7a4fa0" stroke-width="2"/>
+  <text class="ag"  x="1075" y="226" text-anchor="middle">PCK</text>
+  <text class="ags" x="1075" y="250" text-anchor="middle">CK + PK</text>
+  <rect x="1010" y="305" width="130" height="70" rx="10" fill="#efe8f6" stroke="#7a4fa0" stroke-width="2"/>
+  <text class="ag"  x="1075" y="336" text-anchor="middle">TCK</text>
+  <text class="ags" x="1075" y="360" text-anchor="middle">CK + TK</text>
+  <rect x="1010" y="415" width="130" height="70" rx="10" fill="#efe8f6" stroke="#7a4fa0" stroke-width="2"/>
+  <text class="ag"  x="1075" y="446" text-anchor="middle">TPK</text>
+  <text class="ags" x="1075" y="470" text-anchor="middle">PK + TK</text>
+
+  <rect x="1180" y="285" width="130" height="110" rx="12" fill="#7a4fa0" stroke="#5b3a7a" stroke-width="2"/>
+  <text class="ag" x="1245" y="330" text-anchor="middle" style="fill:#ffffff">TPACK</text>
+  <text class="ags" x="1245" y="356" text-anchor="middle" style="fill:#f1e9f8">integrates</text>
+  <text class="ags" x="1245" y="376" text-anchor="middle" style="fill:#f1e9f8">all six</text>
+
+  <path class="ae" d="M960 224 H1006" marker-end="url(#ap)"/>
+  <path class="ae" d="M960 330 C985 330 985 240 1006 240" marker-end="url(#ap)"/>
+  <path class="ae" d="M960 240 C985 240 985 330 1006 330" marker-end="url(#ap)"/>
+  <path class="ae" d="M960 440 C985 440 985 350 1006 350" marker-end="url(#ap)"/>
+  <path class="ae" d="M960 350 C985 350 985 440 1006 440" marker-end="url(#ap)"/>
+  <path class="ae" d="M960 456 H1006" marker-end="url(#ap)"/>
+  <path class="ae" d="M1140 230 C1160 230 1160 315 1176 315" marker-end="url(#ap)"/>
+  <path class="ae" d="M1140 340 H1176" marker-end="url(#ap)"/>
+  <path class="ae" d="M1140 450 C1160 450 1160 365 1176 365" marker-end="url(#ap)"/>
+
+  <text x="1070" y="538" text-anchor="middle" style="font-size:16px;fill:#5f5e58">each agent stays in its domain · trade-offs recorded</text>
+
+  <!-- LLM band -->
+  <path d="M1070 572 V606" fill="none" stroke="#4a4944" stroke-width="2.5" marker-start="url(#a)" marker-end="url(#a)"/>
+  <rect x="810" y="610" width="520" height="60" rx="12" fill="#f1efe8" stroke="#8a887f" stroke-width="2" stroke-dasharray="7 5"/>
+  <text class="b" x="1070" y="647" text-anchor="middle">Gemini LLM · JSON output · retry &amp; fallback</text>
+
+  <!-- 5 Output checks -->
+  <rect x="1380" y="220" width="190" height="220" rx="16" fill="#fdf3e2" stroke="#c98a1b" stroke-width="2.5"/>
+  <text class="h" x="1475" y="266" text-anchor="middle" style="font-size:21px">Output checks</text>
+  <text class="b" x="1475" y="306" text-anchor="middle">✓ valid format</text>
+  <text class="b" x="1475" y="336" text-anchor="middle">✓ citations real</text>
+  <text class="b" x="1475" y="366" text-anchor="middle">✓ timing check</text>
+  <text class="sm" x="1475" y="406" text-anchor="middle">1 retry if invalid</text>
+
+  <!-- 6 Outputs -->
+  <rect x="1620" y="200" width="230" height="260" rx="16" fill="#e6f3ea" stroke="#2e7d4f" stroke-width="2.5"/>
+  <text class="h" x="1735" y="246" text-anchor="middle">Teacher receives</text>
+  <text class="b" x="1735" y="286" text-anchor="middle">lesson plan</text>
+  <text class="b" x="1735" y="316" text-anchor="middle">textbook citations</text>
+  <text class="b" x="1735" y="346" text-anchor="middle">handouts</text>
+  <text class="b" x="1735" y="376" text-anchor="middle">exit-ticket quiz</text>
+  <text class="b" x="1735" y="406" text-anchor="middle">design trade-offs</text>
+
+  <!-- main flow arrows -->
+  <path class="flow" d="M250 330 H296" marker-end="url(#a)"/>
+  <path class="flow" d="M510 330 H556" marker-end="url(#a)"/>
+  <path class="flow" d="M760 330 H806" marker-end="url(#a)"/>
+  <path class="flow" d="M1330 330 H1376" marker-end="url(#a)"/>
+  <path class="flow" d="M1570 330 H1616" marker-end="url(#a)"/>
+
+  <!-- step badges -->
+  <circle cx="40"   cy="220" r="19" fill="#1d1d1b"/><text class="badge-t" x="40"   y="226" text-anchor="middle">1</text>
+  <circle cx="300"  cy="220" r="19" fill="#1d1d1b"/><text class="badge-t" x="300"  y="226" text-anchor="middle">2</text>
+  <circle cx="572"  cy="214" r="19" fill="#1d1d1b"/><text class="badge-t" x="572"  y="220" text-anchor="middle">3</text>
+  <circle cx="810"  cy="110" r="19" fill="#1d1d1b"/><text class="badge-t" x="810"  y="116" text-anchor="middle">4</text>
+  <circle cx="1380" cy="220" r="19" fill="#1d1d1b"/><text class="badge-t" x="1380" y="226" text-anchor="middle">5</text>
+  <circle cx="1620" cy="200" r="19" fill="#1d1d1b"/><text class="badge-t" x="1620" y="206" text-anchor="middle">6</text>
+
+  <!-- audit band -->
+  <rect x="40" y="716" width="1810" height="56" rx="12" fill="#f6f4ee" stroke="#c9c6bc" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <text x="945" y="751" text-anchor="middle" style="font-size:17px;fill:#4a4944">Every step is traced with one id: requests, agent hand-offs, decisions and timings form an audit log</text>
+</svg>

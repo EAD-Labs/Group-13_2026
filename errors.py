@@ -40,6 +40,13 @@ class OffTopicError(AppError):
     http_status = 422
 
 
+class ContentFlaggedError(AppError):
+    """The input-screening agent found content that breaks prompts/guidelines.md."""
+
+    code = "content_flagged"
+    http_status = 422
+
+
 class NotFoundError(AppError):
     code = "not_found"
     http_status = 404

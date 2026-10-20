@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentTPACK Execution Flow</title>
+<style>
+  :root {
+    --bg: #fbfaf7; --panel: #ffffff; --fg: #1d1d1b; --muted: #5f5e58; --line: #dcd9d0;
+    --accent: #2f5d8a; --accent-soft: #e6eef6; --node: #ffffff; --node-ext: #f1efe8;
+    --edge: #7b7a73; --code-bg: #f3f1ea; --warn-bg: #fdf3e2; --warn-line: #d9a441;
+    --k-class: #7a4fa0; --k-inst: #2e7d4f; --k-func: #2f5d8a; --k-js: #a35a1f; --k-ext: #6d6c66;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161614; --panel: #1f1f1c; --fg: #ecebe6; --muted: #a9a79f; --line: #3a3934;
+      --accent: #8db6e0; --accent-soft: #1f2d3b; --node: #24241f; --node-ext: #2c2b26;
+      --edge: #9a988f; --code-bg: #2a2925; --warn-bg: #33291a; --warn-line: #b8862f;
+      --k-class: #c39be6; --k-inst: #6cc596; --k-func: #8db6e0; --k-js: #e3a66f; --k-ext: #b3b1a9;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161614; --panel: #1f1f1c; --fg: #ecebe6; --muted: #a9a79f; --line: #3a3934;
+    --accent: #8db6e0; --accent-soft: #1f2d3b; --node: #24241f; --node-ext: #2c2b26;
+    --edge: #9a988f; --code-bg: #2a2925; --warn-bg: #33291a; --warn-line: #b8862f;
+    --k-class: #c39be6; --k-inst: #6cc596; --k-func: #8db6e0; --k-js: #e3a66f; --k-ext: #b3b1a9;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  code, pre, .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.88em; }
+  code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; }
+  pre { background: var(--code-bg); padding: 14px 16px; border-radius: 8px; overflow-x: auto; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  a { color: var(--accent); }
+
+  .layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); max-width: 1320px; margin: 0 auto; }
+  nav.toc { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; padding: 28px 16px 28px 24px; border-right: 1px solid var(--line); font-size: 14px; }
+  nav.toc .brand { font-weight: 700; font-size: 15px; margin-bottom: 14px; }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; }
+  nav.toc a { display: block; padding: 4px 8px; border-radius: 6px; color: var(--muted); text-decoration: none; }
+  nav.toc a:hover { background: var(--accent-soft); color: var(--fg); }
+  nav.toc .t { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--accent); margin-right: 4px; }
+
+  main { padding: 32px 40px 80px; min-width: 0; }
+  header.hero h1 { font-size: 2rem; margin: 0 0 6px; line-height: 1.2; }
+  header.hero p.lede { color: var(--muted); font-size: 1.08rem; margin: 0 0 20px; max-width: 800px; }
+  section { margin-top: 48px; scroll-margin-top: 16px; }
+  h2 { font-size: 1.45rem; margin: 0 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  h2 .t { font-family: ui-monospace, Consolas, monospace; font-size: 0.8em; color: var(--accent); margin-right: 8px; }
+  h3 { font-size: 1.1rem; margin: 26px 0 8px; }
+  p, li { max-width: 880px; }
+
+  /* object-kind tags */
+  .k { display: inline-block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em; padding: 0 7px; border-radius: 999px; border: 1px solid currentColor; vertical-align: 1px; white-space: nowrap; }
+  .k.class { color: var(--k-class); }
+  .k.inst  { color: var(--k-inst); }
+  .k.func  { color: var(--k-func); }
+  .k.js    { color: var(--k-js); }
+  .k.ext   { color: var(--k-ext); }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 12px 0; font-size: 0.9rem; color: var(--muted); }
+
+  /* step tables */
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.92rem; background: var(--panel); }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border: 1px solid var(--line); }
+  th { background: var(--code-bg); font-weight: 600; white-space: nowrap; }
+  td.n { font-family: ui-monospace, Consolas, monospace; color: var(--muted); white-space: nowrap; width: 1%; }
+  td.obj { min-width: 220px; max-width: 360px; }
+  td.obj code { font-weight: 600; overflow-wrap: anywhere; }
+  td.ev code { color: var(--muted); }
+  tr.sub td.obj { padding-left: 26px; }
+  tr.sub2 td.obj { padding-left: 44px; }
+  tr.grp td { background: var(--accent-soft); font-weight: 600; }
+
+  figure { margin: 18px 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  figure .scroll { overflow-x: auto; }
+  figure svg { display: block; width: 100%; min-width: 900px; height: auto; }
+  figcaption { color: var(--muted); font-size: 0.88rem; margin-top: 8px; }
+
+  svg .hd { fill: var(--node); stroke: var(--line); stroke-width: 1.5; }
+  svg .hd-js { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+  svg .hd-ext { fill: var(--node-ext); stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  svg .ht { fill: var(--fg); font: 600 12.5px ui-monospace, Consolas, monospace; }
+  svg .hk { fill: var(--muted); font: 11px system-ui, sans-serif; }
+  svg .life { stroke: var(--line); stroke-width: 1.4; stroke-dasharray: 4 5; }
+  svg .m { fill: none; stroke: var(--edge); stroke-width: 1.5; }
+  svg .r { fill: none; stroke: var(--edge); stroke-width: 1.3; stroke-dasharray: 6 4; }
+  svg .ml { fill: var(--fg); font: 12px ui-monospace, Consolas, monospace; }
+  svg .mn { fill: var(--muted); font: 11px system-ui, sans-serif; }
+  svg .num { fill: var(--accent); font: 700 11px system-ui, sans-serif; }
+  svg .frame { fill: none; stroke: var(--accent); stroke-width: 1.3; }
+  svg .frame-tag { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.3; }
+  svg .note { fill: var(--node-ext); stroke: var(--line); stroke-width: 1.2; }
+  svg .ah { fill: var(--edge); }
+
+  .tree { font-family: ui-monospace, Consolas, monospace; font-size: 0.84rem; line-height: 1.6; white-space: pre; overflow-x: auto; background: var(--code-bg); padding: 14px 16px; border-radius: 8px; }
+  .tree .c { color: var(--muted); }
+  .tree .s { color: var(--accent); font-weight: 700; }
+
+  .note-box { background: var(--accent-soft); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 6px; margin: 14px 0; }
+  .warn { background: var(--warn-bg); border-left: 3px solid var(--warn-line); padding: 10px 14px; border-radius: 6px; margin: 14px 0; }
+
+  .phases { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+  .phases a { flex: 1 1 100px; display: block; text-decoration: none; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 0.9rem; }
+  .phases a b { display: block; font-family: ui-monospace, Consolas, monospace; color: var(--accent); }
+  .phases a span { color: var(--muted); }
+  .phases a:hover { border-color: var(--accent); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); padding: 16px; }
+    nav.toc ol { columns: 2; column-gap: 12px; }
+    main { padding: 20px 16px 60px; }
+    header.hero h1 { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" class="ah"/>
+    </marker>
+  </defs>
+</svg>
+
+<div class="layout">
+<nav class="toc" aria-label="Contents">
+  <div class="brand">Execution flow</div>
+  <ol>
+    <li><a href="#how">How to read this</a></li>
+    <li><a href="#t0"><span class="t">T0</span>Building the index</a></li>
+    <li><a href="#t1"><span class="t">T1</span>Server start-up</a></li>
+    <li><a href="#seq"><span class="t">T2</span>Sequence diagram</a></li>
+    <li><a href="#t2"><span class="t">T2</span>Stage 1: generate</a></li>
+    <li><a href="#agent"><span class="t">T2.x</span>Inside run_agent</a></li>
+    <li><a href="#llm"><span class="t">T2.y</span>Inside call_agent</a></li>
+    <li><a href="#t3"><span class="t">T3</span>Browser renders</a></li>
+    <li><a href="#t4"><span class="t">T4</span>Stage 2: materials</a></li>
+    <li><a href="#t5"><span class="t">T5</span>Citation click</a></li>
+    <li><a href="#t6"><span class="t">T6</span>Print / regenerate</a></li>
+    <li><a href="#err">Failure paths</a></li>
+    <li><a href="#tree">Full call tree</a></li>
+    <li><a href="#log">Observed event log</a></li>
+    <li><a href="#objects">Object index</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <h1>AgentTPACK: execution flow, object by object</h1>
+  <p class="lede">The companion page (<a href="architecture.html">architecture.html</a>) explains the modules. This page follows the program instead: each step names the exact class, instance or function that runs, in the order it runs, from building the index to a teacher clicking a citation.</p>
+  <p style="color:var(--muted);font-size:0.92rem;margin:0">Companion pages: <a href="flowchart.html">flowchart.html</a> (the whole flow in one picture) · <a href="architecture.html">architecture.html</a> (modules and concepts) · <a href="index.html">all pages</a></p>
+</header>
+
+<section id="how">
+  <h2>How to read this</h2>
+  <p>Objects are written as <code>module.name</code>, so <code>run.run_pipeline</code> is the function <code>run_pipeline</code> in <code>run.py</code>. Browser code lives in one JavaScript function wrapper in <code>static/index.html</code>, so its functions are written without a module prefix, for example <code>generate()</code>. Two functions share that name: the browser's <code>generate()</code> and the server route <code>api.generate</code>.</p>
+  <div class="legend">
+    <span><span class="k class">class</span> a Python class (type)</span>
+    <span><span class="k inst">instance</span> a module-level object created at import</span>
+    <span><span class="k func">function</span> Python function or method</span>
+    <span><span class="k js">browser</span> JavaScript in index.html</span>
+    <span><span class="k ext">external</span> library or remote service</span>
+  </div>
+  <p>The program runs in six phases. T0 happens once, offline. T1 happens each time the server starts. T2 to T6 happen for each lesson.</p>
+  <div class="phases">
+    <a href="#t0"><b>T0</b><span>build the index (offline)</span></a>
+    <a href="#t1"><b>T1</b><span>server start-up</span></a>
+    <a href="#t2"><b>T2</b><span>POST /api/generate</span></a>
+    <a href="#t3"><b>T3</b><span>browser renders the plan</span></a>
+    <a href="#t4"><b>T4</b><span>POST /api/materials</span></a>
+    <a href="#t5"><b>T5</b><span>GET /api/chunks/{id}</span></a>
+    <a href="#t6"><b>T6</b><span>print or regenerate</span></a>
+  </div>
+</section>
+
+<!-- T0 -->
+<section id="t0">
+  <h2><span class="t">T0</span>Building the index (offline, run by hand)</h2>
+  <p>Two scripts run once, in order, before the server ever starts. Nothing here runs during a request.</p>
+  <div class="table-wrap"><table>
+    <tr><th>#</th><th>Object</th><th>Kind</th><th>What it does</th></tr>
+    <tr class="grp"><td colspan="4"><code>python prepare_textbook.py</code></td></tr>
+    <tr><td class="n">0.1</td><td class="obj"><code>prepare_textbook.main(raw_path)</code></td><td><span class="k func">function</span></td><td>Reads <code>data/raw/ncert_science_class7.txt</code> into one string.</td></tr>
+    <tr class="sub"><td class="n">0.2</td><td class="obj"><code>split_chapters(raw)</code></td><td><span class="k func">function</span></td><td>Splits on <code>PAGE_FOOTER_RE</code> ("2018-19") into pages. Walks the pages, using <code>find_chapter_opening()</code> to detect each title from <code>config.CHAPTERS</code> and <code>strip_running_header()</code> to drop page headers. Stops at <code>INDEX</code>. Returns <code>{filename: [lines]}</code>.</td></tr>
+    <tr class="sub"><td class="n">0.3</td><td class="obj"><code>split_sections(lines, num)</code></td><td><span class="k func">function</span></td><td>For each chapter, finds the <code>X.Y HEADING</code> lines with <code>SECTION_RE</code>. Text before section 1 goes under <code>X.0 Introduction</code>. Skips end matter (<code>END_MATTER_RE</code>).</td></tr>
+    <tr class="sub"><td class="n">0.4</td><td class="obj"><code>clean_lines()</code> → <code>to_paragraphs()</code></td><td><span class="k func">function</span></td><td>Drops captions, page numbers and the "Boojho/Paheli" speech bubbles (<code>BUBBLE_RE</code>), then rejoins wrapped lines into paragraphs.</td></tr>
+    <tr class="sub"><td class="n">0.5</td><td class="obj">file write</td><td></td><td>Writes <code>data/chapter01.txt</code> … <code>chapter18.txt</code> with <code>## X.Y Title</code> headings.</td></tr>
+    <tr class="grp"><td colspan="4"><code>python ingest.py</code></td></tr>
+    <tr><td class="n">0.6</td><td class="obj"><code>ingest.main()</code></td><td><span class="k func">function</span></td><td>Entry point.</td></tr>
+    <tr class="sub"><td class="n">0.7</td><td class="obj"><code>chromadb.PersistentClient</code></td><td><span class="k ext">external</span></td><td>Opens <code>./chroma_store</code> on disk.</td></tr>
+    <tr class="sub"><td class="n">0.8</td><td class="obj"><code>SentenceTransformerEmbeddingFunction</code></td><td><span class="k ext">external</span></td><td>Loads <code>all-MiniLM-L6-v2</code> locally.</td></tr>
+    <tr class="sub"><td class="n">0.9</td><td class="obj"><code>client.delete_collection</code> → <code>create_collection</code></td><td><span class="k ext">external</span></td><td>Drops and recreates <code>ncert_g7_biology</code> with <code>hnsw:space = cosine</code>, so every run starts clean.</td></tr>
+    <tr class="sub"><td class="n">0.10</td><td class="obj"><code>RecursiveCharacterTextSplitter</code></td><td><span class="k ext">external</span></td><td>Created with size 1000, overlap 150, separators <code>\n\n</code>, <code>\n</code>, <code>. </code>, space.</td></tr>
+    <tr class="sub"><td class="n">0.11</td><td class="obj"><code>ingest.split_sections(text)</code></td><td><span class="k func">function</span></td><td>For each file in <code>config.CHAPTERS</code>: splits on <code>HEADING_RE</code> (<code>## X.Y</code>) into <code>[(section, body)]</code>.</td></tr>
+    <tr class="sub2"><td class="n">0.12</td><td class="obj"><code>splitter.split_text(body)</code></td><td><span class="k ext">external</span></td><td>Chunks each section. Chunks under 100 characters are skipped. Each kept chunk gets id <code>g7_chNN_sX.Y_iii</code> and metadata <code>{grade, chapter_num, chapter, section, source}</code>.</td></tr>
+    <tr class="sub"><td class="n">0.13</td><td class="obj"><code>collection.add(...)</code></td><td><span class="k ext">external</span></td><td>Adds the chunks in batches of 100 (<code>BATCH_SIZE</code>). Chroma embeds them as it adds them.</td></tr>
+  </table></div>
+</section>
+
+<!-- T1 -->
+<section id="t1">
+  <h2><span class="t">T1</span>Server start-up: <code>uvicorn api:app</code></h2>
+  <p>uvicorn imports <code>api</code>. Python runs every module's top-level code once, in import order. This is when the module-level objects are created:</p>
+  <div class="table-wrap"><table>
+    <tr><th>#</th><th>Object created</th><th>Kind</th><th>Detail</th></tr>
+    <tr><td class="n">1.1</td><td class="obj"><code>config.*</code></td><td><span class="k inst">constants</span></td><td><code>CHAPTERS</code>, limits, <code>RELEVANCE_MAX_DISTANCE</code>, <code>UNSAFE_PATTERNS</code>, <code>INJECTION_PATTERNS</code>, logging switches.</td></tr>
+    <tr><td class="n">1.2</td><td class="obj"><code>errors.AppError</code> + 8 subclasses</td><td><span class="k class">class</span></td><td><code>InputValidationError</code>, <code>IncompleteConstraintsError</code>, <code>UnsafeTopicError</code>, <code>OffTopicError</code>, <code>NotFoundError</code>, <code>RetrievalUnavailableError</code>, <code>LLMError</code>, <code>AgentOutputError</code>.</td></tr>
+    <tr><td class="n">1.3</td><td class="obj"><code>logging_setup._trace_id</code>, <code>_seq</code></td><td><span class="k inst">ContextVar</span></td><td>Hold the current request's trace id and event counter. Each request gets its own values.</td></tr>
+    <tr><td class="n">1.4</td><td class="obj"><code>retrieval._collection = None</code></td><td><span class="k inst">instance</span></td><td>Deliberately empty. The Chroma collection is opened on the first request (lazy), so a missing index can't stop the server from starting.</td></tr>
+    <tr><td class="n">1.5</td><td class="obj"><code>lesson_schema.LessonPlan</code>, <code>LessonMaterials</code>, …</td><td><span class="k class">class</span></td><td>Pydantic output models (<code>Overview</code>, <code>Phase</code>, <code>PhaseQuestion</code>, <code>DesignDecision</code>, <code>Handout</code>, <code>ExitQuestion</code>).</td></tr>
+    <tr><td class="n">1.6</td><td class="obj"><code>validation._UNSAFE</code>, <code>_INJECTION</code></td><td><span class="k inst">compiled regex</span></td><td>Compiled once from the config patterns.</td></tr>
+    <tr><td class="n">1.7</td><td class="obj"><code>llm.MODEL</code>, <code>FALLBACK_MODELS</code>, <code>_client = None</code></td><td><span class="k inst">instance</span></td><td><code>load_dotenv()</code> reads <code>.env</code>. The <code>OpenAI</code> client is created later, on first use.</td></tr>
+    <tr><td class="n">1.8</td><td class="obj"><code>agents.AgentSpec</code></td><td><span class="k class">class</span></td><td>A frozen dataclass: <code>name</code>, <code>prompt_path</code>, <code>required_keys</code>, <code>schema</code>, and the property <code>actor</code>.</td></tr>
+    <tr><td class="n">1.9</td><td class="obj"><code>agents.CK, PK, TK, PCK, TCK, TPK, TPACK, MATERIALS</code></td><td><span class="k inst">AgentSpec</span></td><td>The eight agent definitions. <code>ALL_AGENTS</code> is the tuple of all of them.</td></tr>
+    <tr><td class="n">1.10</td><td class="obj"><code>agents._PROMPTS</code></td><td><span class="k inst">dict</span></td><td><strong>All 8 prompt files are read from disk now</strong>, keyed by agent name. Editing a prompt therefore needs a server reload.</td></tr>
+    <tr><td class="n">1.11</td><td class="obj"><code>run.METHOD_LABELS</code> … <code>MISSING_DETAIL_QUESTIONS</code>, <code>_CHUNK_ID_IN_TEXT</code></td><td><span class="k inst">dict / regex</span></td><td>Enum→label maps, missing-input→wizard-question map, and the chunk-id scrubbing regex.</td></tr>
+    <tr><td class="n">1.12</td><td class="obj"><code>logging_setup.configure_logging()</code></td><td><span class="k func">function</span></td><td>Attaches three handlers to the <code>"agenttpack"</code> logger: <code>RotatingFileHandler</code> + <code>JsonFormatter</code>, <code>StreamHandler</code> + <code>ConsoleFormatter</code>, and <code>SessionFileHandler</code> + <code>SessionFormatter</code> (kept as <code>_session_handler</code>).</td></tr>
+    <tr><td class="n">1.13</td><td class="obj"><code>api.app = FastAPI(...)</code></td><td><span class="k inst">instance</span></td><td>The application object uvicorn serves.</td></tr>
+    <tr><td class="n">1.14</td><td class="obj"><code>api.TPACKRequest</code> (+ <code>ContentKnowledge</code>, <code>Learners</code>, <code>PedagogicalKnowledge</code>, <code>TechnologicalKnowledge</code>), <code>MaterialsRequest</code></td><td><span class="k class">class</span></td><td>Request models, all subclasses of <code>_Strict</code> (no unknown fields, every string run through <code>sanitize_text</code>).</td></tr>
+    <tr><td class="n">1.15</td><td class="obj"><code>@app.exception_handler</code> ×3</td><td><span class="k func">function</span></td><td>Registers <code>app_error_handler</code> (AppError), <code>request_validation_handler</code> and <code>http_error_handler</code>.</td></tr>
+    <tr><td class="n">1.16</td><td class="obj"><code>@app.middleware("http") trace_middleware</code></td><td><span class="k func">function</span></td><td>Wraps every request.</td></tr>
+    <tr><td class="n">1.17</td><td class="obj"><code>GenerateResponse</code>, <code>PlanOut</code>, <code>PlanNotes</code>, <code>AgentStep</code>, <code>MaterialsResponse</code></td><td><span class="k class">class</span></td><td>Response models.</td></tr>
+    <tr><td class="n">1.18</td><td class="obj"><code>generate</code>, <code>materials</code>, <code>read_chunk</code></td><td><span class="k func">route</span></td><td>Registered for <code>POST /api/generate</code>, <code>POST /api/materials</code> and <code>GET /api/chunks/{chunk_id}</code>.</td></tr>
+    <tr><td class="n">1.19</td><td class="obj"><code>app.mount("/", StaticFiles(...))</code></td><td><span class="k ext">external</span></td><td>Registered <strong>last</strong>, because it catches every path, and serves <code>static/index.html</code>.</td></tr>
+  </table></div>
+  <div class="note-box">Created on <em>first use</em>, not at start-up: <code>llm._client</code> (an <code>OpenAI</code> instance, in <code>get_client()</code>) and <code>retrieval._collection</code> (in <code>_get_collection()</code>, which also loads the MiniLM model). The first lesson after a restart is therefore a few seconds slower.</div>
+</section>
+
+<!-- Sequence diagram -->
+<section id="seq">
+  <h2><span class="t">T2</span>Sequence diagram: one plan request</h2>
+  <p>Time runs downward. Solid arrows are calls and dashed arrows are returns. The numbers match the step table below.</p>
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 1180 800" role="img" aria-label="Sequence diagram of POST /api/generate from the browser through trace_middleware, api.generate, run.run_pipeline, validation, retrieval, agents.run_agent, llm.call_agent and Gemini.">
+      <!-- headers -->
+      <rect class="hd-js"  x="10"   y="16" width="120" height="50" rx="8"/>
+      <text class="ht" x="70"  y="38" text-anchor="middle">generate()</text>
+      <text class="hk" x="70"  y="56" text-anchor="middle">browser</text>
+
+      <rect class="hd" x="140"  y="16" width="120" height="50" rx="8"/>
+      <text class="ht" x="200" y="38" text-anchor="middle">trace_middleware</text>
+      <text class="hk" x="200" y="56" text-anchor="middle">api · app</text>
+
+      <rect class="hd" x="270"  y="16" width="120" height="50" rx="8"/>
+      <text class="ht" x="330" y="38" text-anchor="middle">generate</text>
+      <text class="hk" x="330" y="56" text-anchor="middle">api route</text>
+
+      <rect class="hd" x="400"  y="16" width="120" height="50" rx="8"/>
+      <text class="ht" x="460" y="38" text-anchor="middle">run_pipeline</text>
+      <text class="hk" x="460" y="56" text-anchor="middle">run</text>
+
+      <rect class="hd" x="530"  y="16" width="120" height="50" rx="8"/>
+      <text class="ht" x="590" y="38" text-anchor="middle">check_*</text>
+      <text class="hk" x="590" y="56" text-anchor="middle">validation</text>
+
+      <rect class="hd" x="660"  y="16" width="120" height="50" rx="8"/>
+      <text class="ht" x="720" y="38" text-anchor="middle">retrieve</text>
+      <text class="hk" x="720" y="56" text-anchor="middle">retrieval · Chroma</text>
+
+      <rect class="hd" x="790"  y="16" width="120" height="50" rx="8"/>
+      <text class="ht" x="850" y="38" text-anchor="middle">run_agent</text>
+      <text class="hk" x="850" y="56" text-anchor="middle">agents</text>
+
+      <rect class="hd" x="920"  y="16" width="120" height="50" rx="8"/>
+      <text class="ht" x="980" y="38" text-anchor="middle">call_agent</text>
+      <text class="hk" x="980" y="56" text-anchor="middle">llm</text>
+
+      <rect class="hd-ext" x="1050" y="16" width="120" height="50" rx="8"/>
+      <text class="ht" x="1110" y="38" text-anchor="middle">Gemini</text>
+      <text class="hk" x="1110" y="56" text-anchor="middle">remote API</text>
+
+      <!-- lifelines -->
+      <line class="life" x1="70"   y1="66" x2="70"   y2="790"/>
+      <line class="life" x1="200"  y1="66" x2="200"  y2="790"/>
+      <line class="life" x1="330"  y1="66" x2="330"  y2="790"/>
+      <line class="life" x1="460"  y1="66" x2="460"  y2="790"/>
+      <line class="life" x1="590"  y1="66" x2="590"  y2="790"/>
+      <line class="life" x1="720"  y1="66" x2="720"  y2="790"/>
+      <line class="life" x1="850"  y1="66" x2="850"  y2="790"/>
+      <line class="life" x1="980"  y1="66" x2="980"  y2="790"/>
+      <line class="life" x1="1110" y1="66" x2="1110" y2="790"/>
+
+      <!-- 1 -->
+      <path class="m" d="M70 100 L198 100" marker-end="url(#arr)"/>
+      <text class="num" x="76" y="93">2.1</text>
+      <text class="ml" x="102" y="93">fetch POST</text>
+      <!-- 2 -->
+      <path class="m" d="M200 135 L328 135" marker-end="url(#arr)"/>
+      <text class="num" x="206" y="128">2.3</text>
+      <text class="ml" x="232" y="128">call_next</text>
+      <text class="mn" x="206" y="152">start_trace() first; TPACKRequest parsed</text>
+      <!-- 3 -->
+      <path class="m" d="M330 180 L458 180" marker-end="url(#arr)"/>
+      <text class="num" x="336" y="173">2.6</text>
+      <text class="ml" x="362" y="173">run_pipeline(body)</text>
+      <!-- 4 -->
+      <path class="m" d="M460 215 L588 215" marker-end="url(#arr)"/>
+      <text class="num" x="466" y="208">2.7</text>
+      <text class="ml" x="492" y="208">check_safety()</text>
+      <!-- 5 -->
+      <path class="m" d="M460 250 L588 250" marker-end="url(#arr)"/>
+      <text class="num" x="466" y="243">2.8</text>
+      <text class="ml" x="492" y="243">check_consistency()</text>
+      <path class="r" d="M590 268 L462 268" marker-end="url(#arr)"/>
+      <text class="mn" x="530" y="283" text-anchor="middle">warnings[]</text>
+      <!-- 6 -->
+      <path class="m" d="M460 305 L718 305" marker-end="url(#arr)"/>
+      <text class="num" x="466" y="298">2.11</text>
+      <text class="ml" x="498" y="298">retrieve(topic, chapter_num)</text>
+      <path class="r" d="M720 330 L462 330" marker-end="url(#arr)"/>
+      <text class="mn" x="590" y="345" text-anchor="middle">4 chunks {id, text, metadata, distance}</text>
+      <!-- 7 -->
+      <path class="m" d="M460 370 L588 370" marker-end="url(#arr)"/>
+      <text class="num" x="466" y="363">2.13</text>
+      <text class="ml" x="498" y="363">check_relevance()</text>
+
+      <!-- loop frame -->
+      <rect class="frame" x="440" y="392" width="700" height="190" rx="4"/>
+      <path class="frame-tag" d="M440 392 L700 392 L700 410 L690 418 L440 418 Z"/>
+      <text class="ml" x="448" y="410">loop: CK PK TK PCK TCK TPK TPACK</text>
+      <!-- 8 -->
+      <path class="m" d="M460 445 L848 445" marker-end="url(#arr)"/>
+      <text class="num" x="466" y="438">2.15+</text>
+      <text class="ml" x="508" y="438">run_agent(SPEC, inputs, upstream=…)</text>
+      <!-- 9 -->
+      <path class="m" d="M850 480 L978 480" marker-end="url(#arr)"/>
+      <text class="ml" x="856" y="473">call_agent(prompt)</text>
+      <!-- 10 -->
+      <path class="m" d="M980 512 L1108 512" marker-end="url(#arr)"/>
+      <text class="ml" x="986" y="505">completions.create</text>
+      <path class="r" d="M1110 535 L982 535" marker-end="url(#arr)"/>
+      <text class="mn" x="1046" y="550" text-anchor="middle">JSON text</text>
+      <path class="r" d="M980 555 L852 555" marker-end="url(#arr)"/>
+      <text class="mn" x="916" y="570" text-anchor="middle">(dict, usage)</text>
+      <path class="r" d="M850 565 L462 565" marker-end="url(#arr)"/>
+      <text class="mn" x="650" y="560" text-anchor="middle">(output, step)</text>
+
+      <!-- post-processing note -->
+      <rect class="note" x="400" y="600" width="370" height="78" rx="6"/>
+      <text class="num" x="410" y="618">2.27–2.34</text>
+      <text class="ml" x="410" y="636">_strip_invalid_citations · _scrub_ids_from_text</text>
+      <text class="ml" x="410" y="652">LessonPlan.model_validate · missing_details</text>
+      <text class="ml" x="410" y="668">_log_stage_done("pipeline.done")</text>
+
+      <!-- returns -->
+      <path class="r" d="M460 700 L332 700" marker-end="url(#arr)"/>
+      <text class="mn" x="396" y="694" text-anchor="middle">result dict</text>
+      <path class="r" d="M330 728 L202 728" marker-end="url(#arr)"/>
+      <text class="mn" x="266" y="722" text-anchor="middle">GenerateResponse</text>
+      <text class="num" x="206" y="744">2.36</text>
+      <path class="r" d="M200 760 L72 760" marker-end="url(#arr)"/>
+      <text class="mn" x="136" y="754" text-anchor="middle">200 + X-Trace-Id</text>
+      <text class="num" x="76" y="780">→ T3 renderResult(data)</text>
+    </svg>
+    </div>
+    <figcaption>The loop frame runs seven times in a fixed order. Inside it, <code>run_agent</code> also logs hand-offs before the call and the result after it (see <a href="#agent">T2.x</a>). The two schema agents (TPACK here, MATERIALS in T4) may go round the <code>call_agent</code> step twice.</figcaption>
+  </figure>
+</section>
+
+<!-- T2 -->
+<section id="t2">
+  <h2><span class="t">T2</span>Stage 1: <code>POST /api/generate</code>, step by step</h2>
+  <p>"Log event" is what appears in <code>logs/interactions.jsonl</code> at that moment. Indentation shows what is called from inside the step above it.</p>
+  <div class="table-wrap"><table>
+    <tr><th>#</th><th>Object</th><th>Kind</th><th>What happens</th><th>Log event</th></tr>
+
+    <tr class="grp"><td colspan="5">Browser</td></tr>
+    <tr><td class="n">2.1</td><td class="obj"><code>generate()</code></td><td><span class="k js">browser</span></td><td>Runs <code>validateStep(1..3)</code> (with <code>checkField</code> and <code>crossFieldErrors</code>), then <code>buildPayload()</code> turns every <code>[data-field]</code> into nested JSON. Saves it as <code>state.lastPayload</code>, calls <code>show(SCREEN.loading)</code>, and sends <code>fetch("/api/generate")</code>.</td><td class="ev"></td></tr>
+
+    <tr class="grp"><td colspan="5">Server: request entry</td></tr>
+    <tr><td class="n">2.2</td><td class="obj"><code>api.trace_middleware</code></td><td><span class="k func">function</span></td><td>Calls <code>start_trace(header)</code>, which sets <code>_trace_id</code> (from <code>X-Trace-Id</code> if valid, otherwise <code>uuid4().hex</code>) and resets <code>_seq</code> to 0. Starts a timer.</td><td class="ev"><code>human.request</code></td></tr>
+    <tr class="sub"><td class="n">2.3</td><td class="obj"><code>call_next(request)</code></td><td><span class="k ext">Starlette</span></td><td>Passes the request on to routing.</td><td class="ev"></td></tr>
+    <tr class="sub"><td class="n">2.4</td><td class="obj"><code>TPACKRequest</code></td><td><span class="k class">class</span></td><td>FastAPI parses the body into it. <code>_Strict._clean_text</code> runs <code>validation.sanitize_text</code> on every string first. On failure, <code>request_validation_handler</code> returns 422 and the route never runs.</td><td class="ev">(<code>validation.rejected</code>)</td></tr>
+    <tr class="sub"><td class="n">2.5</td><td class="obj"><code>api.generate(body)</code></td><td><span class="k func">route</span></td><td>A plain <code>def</code>, so FastAPI runs it in its thread pool. Logs the inputs.</td><td class="ev"><code>human.lesson_submitted</code></td></tr>
+    <tr class="sub"><td class="n">2.6</td><td class="obj"><code>run.run_pipeline(req)</code></td><td><span class="k func">function</span></td><td>The orchestrator. Everything below runs inside it.</td><td class="ev"></td></tr>
+
+    <tr class="grp"><td colspan="5">Validation and retrieval</td></tr>
+    <tr class="sub"><td class="n">2.7</td><td class="obj"><code>validation.check_safety(safety_fields(req))</code></td><td><span class="k func">function</span></td><td><code>run.safety_fields</code> collects 8 free-text fields by dotted name. For each field, the <code>_INJECTION</code> patterns are tried first, then the <code>_UNSAFE</code> categories. Any hit raises <code>UnsafeTopicError</code>.</td><td class="ev">(<code>validation.rejected</code>)</td></tr>
+    <tr class="sub"><td class="n">2.8</td><td class="obj"><code>validation.check_consistency(req)</code></td><td><span class="k func">function</span></td><td>Contradictions raise <code>IncompleteConstraintsError</code>. Soft issues are returned as <code>warnings</code>.</td><td class="ev">(<code>validation.rejected</code>)</td></tr>
+    <tr class="sub"><td class="n">2.9</td><td class="obj"><code>validation.chapter_name(num)</code></td><td><span class="k func">function</span></td><td>Looks up the chapter title in <code>config.CHAPTERS</code>.</td><td class="ev"><code>validation.passed</code></td></tr>
+    <tr class="sub"><td class="n">2.10</td><td class="obj"><code>run._retrieve_for(req)</code></td><td><span class="k func">function</span></td><td>Wraps the next two steps.</td><td class="ev"></td></tr>
+    <tr class="sub2"><td class="n">2.11</td><td class="obj"><code>retrieval.retrieve(topic, chapter_num)</code></td><td><span class="k func">function</span></td><td>Calls <code>_get_collection()</code> (lazy: on the first call it creates the <code>PersistentClient</code>, embedding function and collection), then <code>collection.query(query_texts=[topic], n_results=4, where={"chapter_num": N})</code>. Returns 4 dicts <code>{id, text, metadata, distance}</code>.</td><td class="ev"><code>retrieval.done</code></td></tr>
+    <tr class="sub2"><td class="n">2.12</td><td class="obj"><code>collection.query</code></td><td><span class="k ext">Chroma</span></td><td>Embeds the topic with MiniLM and returns the nearest chunks by cosine distance.</td><td class="ev"></td></tr>
+    <tr class="sub2"><td class="n">2.13</td><td class="obj"><code>validation.check_relevance(chunks, num)</code></td><td><span class="k func">function</span></td><td>If <code>min(distance) &gt; 0.80</code>, raises <code>OffTopicError</code>.</td><td class="ev">(<code>validation.rejected</code>)</td></tr>
+    <tr class="sub"><td class="n">2.14</td><td class="obj"><code>retrieval.format_chunks(chunks)</code></td><td><span class="k func">function</span></td><td>Builds the <code>[g7_ch01_s1.2_000] (Chapter 1, Section 1.2)\n…text…</code> block that fills <code>{chunks}</code> in the prompts. <code>retrieved_ids</code> is kept for checking citations later.</td><td class="ev"></td></tr>
+
+    <tr class="grp"><td colspan="5">The seven agents (each is one <code>run_agent</code> call; see T2.x)</td></tr>
+    <tr class="sub"><td class="n">2.15</td><td class="obj"><code>run_agent(CK, {grade, chapter, topic, duration, chunks})</code></td><td><span class="k func">function</span></td><td>No upstream. Returns <code>ck</code>.</td><td class="ev"><code>agent.start</code> · <code>llm.response</code> · <code>agent.end</code></td></tr>
+    <tr class="sub"><td class="n">2.16</td><td class="obj"><code>run_agent(PK, {…learner + method fields})</code></td><td><span class="k func">function</span></td><td>Enum values are converted with <code>PRIOR_KNOWLEDGE_LABELS</code>, <code>METHOD_LABELS</code> and <code>CLASSROOM_FORMAT_LABELS</code>, and unset fields become <code>"Not specified"</code> via <code>_or_ns</code>. Returns <code>pk</code>.</td><td class="ev">same</td></tr>
+    <tr class="sub"><td class="n">2.17</td><td class="obj"><code>run_agent(TK, {…technology fields})</code></td><td><span class="k func">function</span></td><td>Uses <code>_yes_no</code>, <code>STUDENT_DEVICE_LABELS</code> and <code>BUDGET_LABELS</code>. Returns <code>tk</code>.</td><td class="ev">same</td></tr>
+    <tr class="sub"><td class="n">2.18</td><td class="obj"><code>run._log_decisions(PK, …)</code>, <code>_log_decisions(TK, …)</code></td><td><span class="k func">function</span></td><td>Turns PK's <code>feasibility_notes</code>, and TK's tools that aren't <code>available</code>, into decision events. Long values are shortened by <code>_short</code>.</td><td class="ev"><code>agent.decision</code> ×n</td></tr>
+    <tr class="sub"><td class="n">2.19</td><td class="obj"><code>run_agent(PCK, {…}, upstream={ck, pk})</code></td><td><span class="k func">function</span></td><td>Returns <code>pck</code>.</td><td class="ev"><code>agent.handoff</code> ×2 · start · end</td></tr>
+    <tr class="sub"><td class="n">2.20</td><td class="obj"><code>_log_decisions(PCK, pck["trade_offs"])</code></td><td><span class="k func">function</span></td><td></td><td class="ev"><code>agent.decision</code> ×n</td></tr>
+    <tr class="sub"><td class="n">2.21</td><td class="obj"><code>run_agent(TCK, {…}, upstream={ck, tk})</code></td><td><span class="k func">function</span></td><td>Returns <code>tck</code>.</td><td class="ev"><code>agent.handoff</code> ×2 · start · end</td></tr>
+    <tr class="sub"><td class="n">2.22</td><td class="obj"><code>_log_decisions(TCK, …)</code></td><td><span class="k func">function</span></td><td></td><td class="ev"><code>agent.decision</code> ×n</td></tr>
+    <tr class="sub"><td class="n">2.23</td><td class="obj"><code>run_agent(TPK, {…, classroom=_classroom_summary(req)}, upstream={pk, tk})</code></td><td><span class="k func">function</span></td><td><code>_classroom_summary</code> builds one line such as "40 students; setup: …; internet: reliable". Returns <code>tpk</code>.</td><td class="ev"><code>agent.handoff</code> ×2 · start · end</td></tr>
+    <tr class="sub"><td class="n">2.24</td><td class="obj"><code>_log_decisions(TPK, …)</code></td><td><span class="k func">function</span></td><td></td><td class="ev"><code>agent.decision</code> ×n</td></tr>
+    <tr class="sub"><td class="n">2.25</td><td class="obj"><code>run_agent(TPACK, {…}, upstream={ck, pk, tk, pck, tck, tpk})</code></td><td><span class="k func">function</span></td><td>Schema agent: the output is a validated <code>LessonPlan</code> dumped back to a dict (<code>plan</code>). It may retry once.</td><td class="ev"><code>agent.handoff</code> ×6 · start · end</td></tr>
+    <tr class="sub"><td class="n">2.26</td><td class="obj"><code>_log_decisions(TPACK, plan["design_decisions"])</code></td><td><span class="k func">function</span></td><td></td><td class="ev"><code>agent.decision</code> ×n</td></tr>
+
+    <tr class="grp"><td colspan="5">Post-processing</td></tr>
+    <tr class="sub"><td class="n">2.27</td><td class="obj"><code>run._strip_invalid_citations(plan, retrieved_ids)</code></td><td><span class="k func">function</span></td><td>Filters each <code>phases[].sources</code> to retrieved ids and removes duplicates. Returns the count removed.</td><td class="ev">(<code>citation.invalid</code>)</td></tr>
+    <tr class="sub"><td class="n">2.28</td><td class="obj"><code>run._scrub_ids_from_text(plan)</code></td><td><span class="k func">function</span></td><td>Recursively removes <code>_CHUNK_ID_IN_TEXT</code> matches from every string except under <code>sources</code>.</td><td class="ev"></td></tr>
+    <tr class="sub"><td class="n">2.29</td><td class="obj">minutes check</td><td></td><td>Sums <code>phases[].minutes</code>. If the total isn't the requested duration, a warning is added.</td><td class="ev"></td></tr>
+    <tr class="sub"><td class="n">2.30</td><td class="obj">gap merge</td><td></td><td><code>ck["coverage_gaps"] + pck["content_gaps"]</code> are added to <code>plan["not_covered"]</code> (max 20).</td><td class="ev"></td></tr>
+    <tr class="sub"><td class="n">2.31</td><td class="obj"><code>LessonPlan.model_validate(plan)</code></td><td><span class="k class">class</span></td><td>Re-checks the edited plan. A failure becomes <code>AgentOutputError</code> (<code>postprocess_invalid</code>).</td><td class="ev">(<code>agent.error</code>)</td></tr>
+    <tr class="sub"><td class="n">2.32</td><td class="obj"><code>run.missing_details(names, req)</code></td><td><span class="k func">function</span></td><td>For each of PK's and TK's <code>missing_inputs</code>: <code>_normalise_field_name</code>, look up <code>MISSING_DETAIL_QUESTIONS</code>, skip fields the teacher filled (<code>_request_value</code>). Returns <code>[{field, question}]</code>, stored as <code>plan["missing_details"]</code>.</td><td class="ev"></td></tr>
+    <tr class="sub"><td class="n">2.33</td><td class="obj"><code>run._log_stage_done("pipeline.done", steps, …)</code></td><td><span class="k func">function</span></td><td>Logs the agent order and timings, the number of removed references and the warnings. The full plan goes in <code>detail</code>.</td><td class="ev"><code>pipeline.done</code></td></tr>
+    <tr class="sub"><td class="n">2.34</td><td class="obj">return dict</td><td></td><td><code>{trace_id: current_trace_id(), lesson, notes, warnings, agent_sequence, _retrieved_ids}</code></td><td class="ev"></td></tr>
+
+    <tr class="grp"><td colspan="5">Server: response</td></tr>
+    <tr><td class="n">2.35</td><td class="obj"><code>GenerateResponse</code></td><td><span class="k class">class</span></td><td>FastAPI validates and serialises the dict through the <code>response_model</code>. <code>lesson</code> becomes a <code>PlanOut</code> (a <code>LessonPlan</code> plus <code>missing_details</code>). The JSON key stays <code>_retrieved_ids</code>.</td><td class="ev"></td></tr>
+    <tr><td class="n">2.36</td><td class="obj"><code>api.trace_middleware</code> (after <code>call_next</code>)</td><td><span class="k func">function</span></td><td>Sets the <code>X-Trace-Id</code> header and logs the status and total time.</td><td class="ev"><code>human.response</code></td></tr>
+  </table></div>
+</section>
+
+<!-- T2.x -->
+<section id="agent">
+  <h2><span class="t">T2.x</span>Inside <code>agents.run_agent(spec, inputs, upstream)</code></h2>
+  <p>The same sequence runs for every agent, CK through MATERIALS:</p>
+  <div class="table-wrap"><table>
+    <tr><th>#</th><th>Object</th><th>Kind</th><th>What happens</th><th>Log event</th></tr>
+    <tr><td class="n">a</td><td class="obj"><code>for source, output in upstream.items()</code></td><td></td><td>One hand-off per upstream agent, in dict order. <code>from</code>/<code>to</code>, payload keys and size go on the event, and the full payload goes in <code>detail</code>.</td><td class="ev"><code>agent.handoff</code></td></tr>
+    <tr><td class="n">b</td><td class="obj"><code>fill[f"{source}_output"] = json.dumps(…, indent=2)</code></td><td></td><td>Adds <code>{ck_output}</code>, <code>{pk_output}</code> and so on to the template values.</td><td class="ev"></td></tr>
+    <tr><td class="n">c</td><td class="obj"><code>_PROMPTS[spec.name].format(**fill)</code></td><td><span class="k inst">dict</span></td><td>Fills the template loaded at T1.10. A <code>KeyError</code> or <code>IndexError</code> raises <code>AgentOutputError</code>.</td><td class="ev">(<code>agent.error</code> <code>prompt_placeholder</code>)</td></tr>
+    <tr><td class="n">d</td><td class="obj"><code>log_event("agent.start", spec.actor, …)</code></td><td><span class="k func">function</span></td><td>Logs the prompt size and the upstream actors. The inputs go in <code>detail</code>, plus the full prompt if <code>LOG_FULL_PAYLOADS</code> is on.</td><td class="ev"><code>agent.start</code></td></tr>
+    <tr><td class="n">e1</td><td class="obj"><code>llm.call_agent(prompt, actor)</code> → <code>_check_required_keys(spec, output)</code></td><td><span class="k func">function</span></td><td><em>If <code>spec.schema is None</code></em> (CK, PK, TK, PCK, TCK, TPK): a single attempt. Missing keys raise <code>AgentOutputError</code>.</td><td class="ev">(<code>agent.error</code> <code>missing_keys</code>)</td></tr>
+    <tr><td class="n">e2</td><td class="obj"><code>agents._call_with_schema(spec, prompt)</code></td><td><span class="k func">function</span></td><td><em>If <code>spec.schema</code> is set</em> (TPACK, MATERIALS). Attempt 1: <code>call_agent</code> then <code>spec.schema.model_validate(raw)</code>. On a <code>ValidationError</code> or <code>AgentOutputError</code>, <code>_format_validation_errors</code> produces at most 12 lines, which are appended as <code>_RETRY_NOTE</code>. Attempt 2 runs with them. A second failure raises.</td><td class="ev">(<code>agent.error</code> <code>schema_mismatch</code> / <code>invalid_json</code>)</td></tr>
+    <tr><td class="n">f</td><td class="obj"><code>log_event("agent.end", …, status="ok")</code></td><td><span class="k func">function</span></td><td>Logs the duration, output keys and <code>usage</code> (model, tokens). The output goes in <code>detail</code>. On an exception it logs <code>status="error"</code> and re-raises.</td><td class="ev"><code>agent.end</code></td></tr>
+    <tr><td class="n">g</td><td class="obj">return</td><td></td><td><code>(output, {"agent": name, "ms": …, "status": "ok"})</code>. The second element is added to <code>steps</code>, which becomes <code>agent_sequence</code>.</td><td class="ev"></td></tr>
+  </table></div>
+</section>
+
+<!-- T2.y -->
+<section id="llm">
+  <h2><span class="t">T2.y</span>Inside <code>llm.call_agent(prompt, actor)</code></h2>
+  <div class="table-wrap"><table>
+    <tr><th>#</th><th>Object</th><th>Kind</th><th>What happens</th><th>Log event</th></tr>
+    <tr><td class="n">a</td><td class="obj"><code>llm._complete(prompt, actor)</code></td><td><span class="k func">function</span></td><td>Loops over <code>[MODEL] + FALLBACK_MODELS</code>. For each model, up to 4 attempts with waits of <code>(0,) + LLM_RETRY_BACKOFF_S</code>.</td><td class="ev"></td></tr>
+    <tr class="sub"><td class="n">b</td><td class="obj"><code>llm.get_client()</code></td><td><span class="k func">function</span></td><td>On the first call it creates <code>OpenAI(api_key, base_url=GEMINI_BASE_URL, timeout=60, max_retries=0)</code> and stores it in <code>_client</code>. A missing key raises <code>LLMError</code>.</td><td class="ev"></td></tr>
+    <tr class="sub"><td class="n">c</td><td class="obj"><code>client.chat.completions.create(model, messages, temperature=0.3, response_format=json_object)</code></td><td><span class="k ext">openai → Gemini</span></td><td>The network call. Exceptions are sorted: <code>AuthenticationError</code> fails now; <code>NotFoundError</code>, <code>APITimeoutError</code> and 429 move to the next model; 5xx and <code>APIConnectionError</code> retry the same model; any other status fails now.</td><td class="ev">(<code>llm.retry</code>, <code>agent.error</code>)</td></tr>
+    <tr><td class="n">d</td><td class="obj"><code>response.choices[0].message.content</code></td><td></td><td>The raw text. Token counts are read from <code>response.usage</code>.</td><td class="ev"><code>llm.response</code></td></tr>
+    <tr><td class="n">e</td><td class="obj">fence strip → <code>json.loads</code> → <code>isinstance(dict)</code></td><td></td><td>Removes any <code>```</code> wrapper. Bad JSON or a non-object raises <code>AgentOutputError</code>.</td><td class="ev">(<code>agent.error</code> <code>invalid_json</code> / <code>not_an_object</code>)</td></tr>
+    <tr><td class="n">f</td><td class="obj">return</td><td></td><td><code>(parsed_dict, {"model", "prompt_tokens", "completion_tokens"})</code></td><td class="ev"></td></tr>
+  </table></div>
+</section>
+
+<!-- T3 -->
+<section id="t3">
+  <h2><span class="t">T3</span>Browser renders the plan</h2>
+  <div class="table-wrap"><table>
+    <tr><th>#</th><th>Object</th><th>Kind</th><th>What happens</th></tr>
+    <tr><td class="n">3.1</td><td class="obj"><code>generate()</code> (continues)</td><td><span class="k js">browser</span></td><td>If <code>!res.ok</code>: <code>readError(res)</code>, then for a 422 <code>applyServerFieldErrors(error)</code> (highlights fields with <code>setFieldError</code> and jumps to the step with <code>stepOf</code>), otherwise <code>showError()</code>. If ok: <code>res.json()</code> and <code>state.traceId = data.trace_id</code>.</td></tr>
+    <tr><td class="n">3.2</td><td class="obj"><code>renderResult(data)</code></td><td><span class="k js">browser</span></td><td>Sets <code>state.result</code>, adds <code>body.has-pack</code> and resets <code>state.materials</code> and <code>state.quizAnswers</code>.</td></tr>
+    <tr class="sub"><td class="n">3.3</td><td class="obj"><code>renderPlan()</code></td><td><span class="k js">browser</span></td><td>Warnings card (<code>listCard</code>), overview card, then for each phase <code>renderPhase(p)</code>, which uses <code>sec</code>, <code>ol</code>, <code>ul</code> and <code>sourcesRow(p.sources)</code> (the textbook chips, via <code>groupBySection</code> → <code>sectionOf</code>). Then <code>renderMissingDetails()</code> (one copy of a wizard control per question, via <code>controlLike</code>), <code>renderPlanningNotes(data)</code>, and the "Not in your textbook" list. All nodes are built with <code>el()</code>, which uses <code>textContent</code> only.</td></tr>
+    <tr class="sub"><td class="n">3.4</td><td class="obj"><code>selectTab("plan")</code></td><td><span class="k js">browser</span></td><td>Shows the Plan panel.</td></tr>
+    <tr class="sub"><td class="n">3.5</td><td class="obj"><code>loadMaterials()</code></td><td><span class="k js">browser</span></td><td>Starts T4 straight away, without waiting for the teacher.</td></tr>
+    <tr><td class="n">3.6</td><td class="obj"><code>show(SCREEN.result)</code></td><td><span class="k js">browser</span></td><td>Hides all other screens.</td></tr>
+  </table></div>
+</section>
+
+<!-- T4 -->
+<section id="t4">
+  <h2><span class="t">T4</span>Stage 2: <code>POST /api/materials</code></h2>
+  <div class="table-wrap"><table>
+    <tr><th>#</th><th>Object</th><th>Kind</th><th>What happens</th><th>Log event</th></tr>
+    <tr><td class="n">4.1</td><td class="obj"><code>loadMaterials()</code></td><td><span class="k js">browser</span></td><td>Increments <code>state.materialsToken</code>, then <code>renderMaterials()</code> shows the "…" loading state. Takes <code>missing_details</code> out of <code>state.result.lesson</code> and sends <code>fetch("/api/materials", {request: state.lastPayload, plan})</code> with <code>X-Trace-Id: state.traceId</code>.</td><td class="ev"></td></tr>
+    <tr><td class="n">4.2</td><td class="obj"><code>api.trace_middleware</code></td><td><span class="k func">function</span></td><td><code>start_trace(same id)</code>, so this joins the same trace and session file. <code>seq</code> restarts at 1.</td><td class="ev"><code>human.request</code></td></tr>
+    <tr class="sub"><td class="n">4.3</td><td class="obj"><code>MaterialsRequest</code></td><td><span class="k class">class</span></td><td>Validates <code>request: TPACKRequest</code> and <code>plan: LessonPlan</code>.</td><td class="ev"></td></tr>
+    <tr class="sub"><td class="n">4.4</td><td class="obj"><code>api.materials(body)</code></td><td><span class="k func">route</span></td><td>Logs the topic, plan title and phase names.</td><td class="ev"><code>human.materials_requested</code></td></tr>
+    <tr class="sub"><td class="n">4.5</td><td class="obj"><code>run.run_materials(req, plan)</code></td><td><span class="k func">function</span></td><td>Runs the steps below.</td><td class="ev"></td></tr>
+    <tr class="sub2"><td class="n">4.6</td><td class="obj"><code>check_safety(safety_fields(req))</code></td><td><span class="k func">function</span></td><td>Safety is checked again, because the client sent the request again. Consistency is <em>not</em> re-checked.</td><td class="ev"></td></tr>
+    <tr class="sub2"><td class="n">4.7</td><td class="obj"><code>_retrieve_for(req)</code> → <code>retrieve</code> + <code>check_relevance</code></td><td><span class="k func">function</span></td><td>The same 4 chunks again (local, no LLM call).</td><td class="ev"><code>retrieval.done</code></td></tr>
+    <tr class="sub2"><td class="n">4.8</td><td class="obj"><code>run_agent(MATERIALS, {grade, topic, blooms_focus, chunks}, upstream={"tpack": plan})</code></td><td><span class="k func">function</span></td><td>Schema agent (<code>LessonMaterials</code>) with one retry. See T2.x.</td><td class="ev"><code>agent.handoff</code> · start · <code>llm.response</code> · end</td></tr>
+    <tr class="sub2"><td class="n">4.9</td><td class="obj"><code>_scrub_ids_from_text</code> → <code>LessonMaterials.model_validate</code></td><td><span class="k func">function</span></td><td>Cleans the text, then re-validates. <code>ExitQuestion._normalise_bloom</code> and <code>_answer_is_an_option</code> run here.</td><td class="ev"></td></tr>
+    <tr class="sub2"><td class="n">4.10</td><td class="obj"><code>_log_stage_done("materials.done", …)</code></td><td><span class="k func">function</span></td><td></td><td class="ev"><code>materials.done</code></td></tr>
+    <tr><td class="n">4.11</td><td class="obj"><code>MaterialsResponse</code> → middleware</td><td><span class="k class">class</span></td><td><code>{trace_id, materials, agent_sequence}</code></td><td class="ev"><code>human.response</code></td></tr>
+    <tr><td class="n">4.12</td><td class="obj"><code>loadMaterials()</code> (resumes)</td><td><span class="k js">browser</span></td><td>If <code>token !== state.materialsToken</code>, a newer lesson has replaced this one and the response is dropped. Otherwise it sets <code>state.materials</code> and calls <code>renderMaterials()</code>, which calls <code>renderHandouts()</code> and <code>renderQuiz()</code>. On error, the tabs show a <em>Retry</em> button that calls <code>loadMaterials</code> again.</td><td class="ev"></td></tr>
+  </table></div>
+</section>
+
+<!-- T5 -->
+<section id="t5">
+  <h2><span class="t">T5</span>Teacher clicks a "Textbook §1.2" chip</h2>
+  <div class="table-wrap"><table>
+    <tr><th>#</th><th>Object</th><th>Kind</th><th>What happens</th><th>Log event</th></tr>
+    <tr><td class="n">5.1</td><td class="obj"><code>togglePassages(chip, ids, target)</code></td><td><span class="k js">browser</span></td><td>Closes the other chips, then runs <code>Promise.all(ids.map(fetch("/api/chunks/" + id)))</code> with the lesson's <code>X-Trace-Id</code>.</td><td class="ev"></td></tr>
+    <tr><td class="n">5.2</td><td class="obj"><code>trace_middleware</code></td><td><span class="k func">function</span></td><td>Joins the lesson's trace.</td><td class="ev"><code>human.request</code></td></tr>
+    <tr class="sub"><td class="n">5.3</td><td class="obj"><code>api.read_chunk(chunk_id)</code></td><td><span class="k func">route</span></td><td>Calls <code>retrieval.get_chunk</code>.</td><td class="ev"><code>human.citation_view</code></td></tr>
+    <tr class="sub2"><td class="n">5.4</td><td class="obj"><code>retrieval.get_chunk(chunk_id)</code></td><td><span class="k func">function</span></td><td>The id must match <code>CHUNK_ID_RE</code>, otherwise <code>InputValidationError</code> (422). Then <code>_get_collection().get(ids=[id])</code>, a direct lookup with no embedding. If nothing comes back, <code>read_chunk</code> raises <code>NotFoundError</code> (404).</td><td class="ev"></td></tr>
+    <tr><td class="n">5.5</td><td class="obj"><code>togglePassages</code> (resumes)</td><td><span class="k js">browser</span></td><td>Shows each chunk's metadata line and text in a <code>.panel</code>.</td><td class="ev"><code>human.response</code></td></tr>
+  </table></div>
+</section>
+
+<!-- T6 -->
+<section id="t6">
+  <h2><span class="t">T6</span>Print, regenerate or start over</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Trigger</th><th>Object chain</th></tr>
+    <tr><td>"Download teacher pack"</td><td><code>downloadPack()</code> → <code>buildPrintPack()</code> (fills <code>#print-pack</code>: plan page, one page per handout, student quiz, answer key) → sets <code>document.title</code> → <code>window.print()</code> → <code>afterprint</code> restores the title. Ctrl+P runs <code>buildPrintPack</code> through <code>beforeprint</code>.</td></tr>
+    <tr><td>"Regenerate with this"</td><td><code>regenerateWith(detail, source, control, error)</code> → writes the answer into the original wizard field (or adds it to <code>other_requests</code>) → <code>checkField</code> → <code>generate()</code>. This repeats all of T2 → T3 → T4 with a <strong>new</strong> trace id.</td></tr>
+    <tr><td>"Edit inputs"</td><td><code>show(SCREEN.review)</code> → <code>renderReview()</code></td></tr>
+    <tr><td>"Start a new lesson"</td><td><code>#wizard.reset()</code>, <code>clearError()</code>, <code>clearFieldErrors()</code>, resets <code>state</code>, increments <code>materialsToken</code> (so a pending stage-2 response is ignored), clears <code>#print-pack</code>, then <code>show(1)</code>.</td></tr>
+  </table></div>
+</section>
+
+<!-- errors -->
+<section id="err">
+  <h2>Failure paths</h2>
+  <p>Wherever an <code>AppError</code> is raised, Python unwinds back to FastAPI's exception layer. From there the order is always the same:</p>
+  <div class="tree">raise SomeAppError(message, details)        <span class="c"># anywhere in run_pipeline / run_agent / llm / retrieval</span>
+  └─ api.app_error_handler(request, exc)    <span class="c"># event: api.error (WARNING if &lt;500, ERROR otherwise)</span>
+       └─ api.error_response(status, code, message, details)
+            └─ JSONResponse {"error": {code, message, details, trace_id}}
+  └─ api.trace_middleware (after call_next)  <span class="c"># event: human.response</span>
+  └─ browser readError(res) → applyServerFieldErrors() or showError()</div>
+  <div class="table-wrap"><table>
+    <tr><th>Raised at step</th><th>Exception class</th><th>HTTP</th></tr>
+    <tr><td>2.4 body parsing</td><td><code>RequestValidationError</code> → <code>request_validation_handler</code></td><td>422</td></tr>
+    <tr><td>2.7 <code>check_safety</code></td><td><code>UnsafeTopicError</code></td><td>422</td></tr>
+    <tr><td>2.8 <code>check_consistency</code></td><td><code>IncompleteConstraintsError</code></td><td>422</td></tr>
+    <tr><td>2.11 <code>_get_collection</code> / <code>query</code></td><td><code>RetrievalUnavailableError</code></td><td>503</td></tr>
+    <tr><td>2.13 <code>check_relevance</code></td><td><code>OffTopicError</code></td><td>422</td></tr>
+    <tr><td>T2.y <code>_complete</code> / <code>get_client</code></td><td><code>LLMError</code></td><td>502</td></tr>
+    <tr><td>T2.x c, e1, e2 · 2.31 · 4.9</td><td><code>AgentOutputError</code></td><td>502</td></tr>
+    <tr><td>5.4 <code>get_chunk</code> / <code>read_chunk</code></td><td><code>InputValidationError</code> / <code>NotFoundError</code></td><td>422 / 404</td></tr>
+    <tr><td>anything else</td><td>caught in <code>trace_middleware</code>'s <code>except Exception</code></td><td>500 <code>internal_error</code></td></tr>
+  </table></div>
+  <p>A failure part-way through T2 discards that request's work. For example, if TPACK fails twice, the CK to TPK outputs are lost (they remain in the session log only). Nothing is cached between requests.</p>
+</section>
+
+<!-- tree -->
+<section id="tree">
+  <h2>Full call tree of one lesson</h2>
+  <p>Everything from T2 to T5 in one view. Lines in <span style="color:var(--accent);font-weight:700">blue</span> are Gemini round-trips (8 in total).</p>
+<div class="tree">generate()                                         <span class="c"># browser</span>
+├─ validateStep() · buildPayload()
+└─ fetch POST /api/generate
+   └─ trace_middleware ── start_trace()
+      └─ TPACKRequest(…)  ← _Strict._clean_text ← sanitize_text
+         └─ api.generate(body)
+            └─ run.run_pipeline(req)
+               ├─ check_safety(safety_fields(req))
+               ├─ check_consistency(req)
+               ├─ chapter_name()
+               ├─ _retrieve_for(req)
+               │  ├─ retrieve() ── _get_collection() ── collection.query()
+               │  └─ check_relevance()
+               ├─ format_chunks()
+<span class="s">               ├─ run_agent(CK)      ── call_agent ── _complete ── Gemini</span>
+<span class="s">               ├─ run_agent(PK)      ── call_agent ── _complete ── Gemini</span>
+<span class="s">               ├─ run_agent(TK)      ── call_agent ── _complete ── Gemini</span>
+               ├─ _log_decisions(PK) · _log_decisions(TK)
+<span class="s">               ├─ run_agent(PCK, upstream=ck,pk)        ── … ── Gemini</span>
+               ├─ _log_decisions(PCK)
+<span class="s">               ├─ run_agent(TCK, upstream=ck,tk)        ── … ── Gemini</span>
+               ├─ _log_decisions(TCK)
+<span class="s">               ├─ run_agent(TPK, upstream=pk,tk)        ── … ── Gemini</span>
+               ├─ _log_decisions(TPK)
+<span class="s">               ├─ run_agent(TPACK, upstream=all six)    ── _call_with_schema ── Gemini (×1–2)</span>
+               ├─ _log_decisions(TPACK)
+               ├─ _strip_invalid_citations() · _scrub_ids_from_text()
+               ├─ LessonPlan.model_validate()
+               ├─ missing_details()
+               └─ _log_stage_done("pipeline.done")
+renderResult(data)                                 <span class="c"># browser</span>
+├─ renderPlan() ── renderPhase() ── sourcesRow()
+│               ── renderMissingDetails() · renderPlanningNotes()
+└─ loadMaterials()
+   └─ fetch POST /api/materials   (same X-Trace-Id)
+      └─ trace_middleware ── MaterialsRequest ── api.materials()
+         └─ run.run_materials(req, plan)
+            ├─ check_safety() · _retrieve_for()
+<span class="s">            ├─ run_agent(MATERIALS, upstream=tpack) ── _call_with_schema ── Gemini (×1–2)</span>
+            ├─ _scrub_ids_from_text() · LessonMaterials.model_validate()
+            └─ _log_stage_done("materials.done")
+      └─ renderMaterials() ── renderHandouts() · renderQuiz()
+togglePassages()   (per chip click)
+└─ fetch GET /api/chunks/{id} ── api.read_chunk() ── retrieval.get_chunk() ── collection.get()</div>
+</section>
+
+<!-- observed log -->
+<section id="log">
+  <h2>Observed event log</h2>
+  <p>This order was recorded by running one lesson through the real <code>api.app</code> with <code>TestClient</code>, with only <code>llm.call_agent</code>, <code>run.retrieve</code> and <code>api.get_chunk</code> replaced by fakes (as in <code>tests/conftest.py</code>). Events written only by the real versions of those functions are marked <em>real only</em>.</p>
+  <div class="table-wrap"><table>
+    <tr><th>seq</th><th>actor</th><th>event</th><th>step</th></tr>
+    <tr class="grp"><td colspan="4">POST /api/generate</td></tr>
+    <tr><td class="n">1</td><td>human</td><td><code>human.request</code></td><td>2.2</td></tr>
+    <tr><td class="n">2</td><td>human</td><td><code>human.lesson_submitted</code></td><td>2.5</td></tr>
+    <tr><td class="n">3</td><td>validator</td><td><code>validation.passed</code></td><td>2.9</td></tr>
+    <tr><td class="n"></td><td>retriever</td><td><code>retrieval.done</code> <em>real only</em></td><td>2.11</td></tr>
+    <tr><td class="n">4–5</td><td>agent:ck</td><td><code>agent.start</code>, (<code>llm.response</code> <em>real only</em>), <code>agent.end</code></td><td>2.15</td></tr>
+    <tr><td class="n">6–7</td><td>agent:pk</td><td><code>agent.start</code>, <code>agent.end</code></td><td>2.16</td></tr>
+    <tr><td class="n">8–9</td><td>agent:tk</td><td><code>agent.start</code>, <code>agent.end</code></td><td>2.17</td></tr>
+    <tr><td class="n"></td><td>agent:pk / agent:tk</td><td><code>agent.decision</code> (only if they report feasibility notes or unavailable tools)</td><td>2.18</td></tr>
+    <tr><td class="n">10–11</td><td>agent:pck</td><td><code>agent.handoff</code> ck→pck, pk→pck</td><td>2.19</td></tr>
+    <tr><td class="n">12–14</td><td>agent:pck</td><td><code>agent.start</code>, <code>agent.end</code>, <code>agent.decision</code></td><td>2.19–2.20</td></tr>
+    <tr><td class="n">15–18</td><td>agent:tck</td><td><code>agent.handoff</code> ck→tck, tk→tck, <code>agent.start</code>, <code>agent.end</code></td><td>2.21</td></tr>
+    <tr><td class="n">19–23</td><td>agent:tpk</td><td><code>agent.handoff</code> pk→tpk, tk→tpk, <code>agent.start</code>, <code>agent.end</code>, <code>agent.decision</code></td><td>2.23–2.24</td></tr>
+    <tr><td class="n">24–29</td><td>agent:tpack</td><td><code>agent.handoff</code> ×6 (ck, pk, tk, pck, tck, tpk → tpack)</td><td>2.25</td></tr>
+    <tr><td class="n">30–32</td><td>agent:tpack</td><td><code>agent.start</code>, <code>agent.end</code>, <code>agent.decision</code></td><td>2.25–2.26</td></tr>
+    <tr><td class="n">33</td><td>agent:tpack</td><td><code>citation.invalid</code></td><td>2.27</td></tr>
+    <tr><td class="n">34</td><td>api</td><td><code>pipeline.done</code></td><td>2.33</td></tr>
+    <tr><td class="n">35</td><td>api</td><td><code>human.response</code></td><td>2.36</td></tr>
+    <tr class="grp"><td colspan="4">POST /api/materials (same trace, seq restarts)</td></tr>
+    <tr><td class="n">1–2</td><td>human</td><td><code>human.request</code>, <code>human.materials_requested</code></td><td>4.2–4.4</td></tr>
+    <tr><td class="n">3–5</td><td>agent:materials</td><td><code>agent.handoff</code> tpack→materials, <code>agent.start</code>, <code>agent.end</code></td><td>4.8</td></tr>
+    <tr><td class="n">6–7</td><td>api</td><td><code>materials.done</code>, <code>human.response</code></td><td>4.10–4.11</td></tr>
+    <tr class="grp"><td colspan="4">GET /api/chunks/{id} (same trace)</td></tr>
+    <tr><td class="n">1–3</td><td>human / api</td><td><code>human.request</code>, <code>human.citation_view</code>, <code>human.response</code></td><td>5.2–5.5</td></tr>
+  </table></div>
+  <p>To see the same thing for a real lesson, run <code>python trace.py --last</code>. The matching <code>logs/sessions/*.log</code> file also shows every <code>detail</code> payload.</p>
+</section>
+
+<!-- index -->
+<section id="objects">
+  <h2>Object index</h2>
+  <p>Every named object above, with the step where it first acts.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Module</th><th>Classes</th><th>Instances (created at import)</th><th>Functions (first step)</th></tr>
+    <tr><td><code>api</code></td><td><code>_Strict</code>, <code>ContentKnowledge</code>, <code>Learners</code>, <code>PedagogicalKnowledge</code>, <code>TechnologicalKnowledge</code>, <code>TPACKRequest</code>, <code>MaterialsRequest</code>, <code>MissingDetail</code>, <code>PlanOut</code>, <code>AgentStep</code>, <code>PlanNotes</code>, <code>GenerateResponse</code>, <code>MaterialsResponse</code></td><td><code>app</code>, <code>_FRIENDLY</code></td><td><code>trace_middleware</code> 2.2, <code>generate</code> 2.5, <code>materials</code> 4.4, <code>read_chunk</code> 5.3, <code>error_response</code>, <code>app_error_handler</code>, <code>request_validation_handler</code>, <code>http_error_handler</code></td></tr>
+    <tr><td><code>run</code></td><td></td><td><code>METHOD_LABELS</code>, <code>BLOOMS_LABELS</code>, <code>INFRASTRUCTURE_LABELS</code>, <code>PRIOR_KNOWLEDGE_LABELS</code>, <code>CLASSROOM_FORMAT_LABELS</code>, <code>STUDENT_DEVICE_LABELS</code>, <code>BUDGET_LABELS</code>, <code>MISSING_DETAIL_QUESTIONS</code>, <code>_CHUNK_ID_IN_TEXT</code>, <code>NS</code></td><td><code>run_pipeline</code> 2.6, <code>safety_fields</code> 2.7, <code>_retrieve_for</code> 2.10, <code>_or_ns</code>/<code>_yes_no</code> 2.16, <code>_log_decisions</code>/<code>_short</code> 2.18, <code>_classroom_summary</code> 2.23, <code>_strip_invalid_citations</code> 2.27, <code>_scrub_ids_from_text</code> 2.28, <code>missing_details</code>/<code>_normalise_field_name</code>/<code>_request_value</code> 2.32, <code>_log_stage_done</code> 2.33, <code>run_materials</code> 4.5</td></tr>
+    <tr><td><code>agents</code></td><td><code>AgentSpec</code></td><td><code>CK</code>, <code>PK</code>, <code>TK</code>, <code>PCK</code>, <code>TCK</code>, <code>TPK</code>, <code>TPACK</code>, <code>MATERIALS</code>, <code>ALL_AGENTS</code>, <code>_PROMPTS</code>, <code>_RETRY_NOTE</code></td><td><code>run_agent</code> 2.15, <code>_call_with_schema</code> 2.25, <code>_format_validation_errors</code>, <code>_check_required_keys</code>, <code>_elapsed_ms</code></td></tr>
+    <tr><td><code>llm</code></td><td></td><td><code>MODEL</code>, <code>FALLBACK_MODELS</code>, <code>GEMINI_BASE_URL</code>, <code>_TRANSIENT_STATUS</code>, <code>_client</code> (lazy <code>OpenAI</code>)</td><td><code>call_agent</code>, <code>_complete</code>, <code>get_client</code>, <code>_log_llm_error</code>, <code>_log_retry</code> (all T2.y)</td></tr>
+    <tr><td><code>lesson_schema</code></td><td><code>_Out</code>, <code>PhaseQuestion</code>, <code>Phase</code>, <code>Overview</code>, <code>DesignDecision</code>, <code>LessonPlan</code>, <code>Handout</code>, <code>ExitQuestion</code>, <code>LessonMaterials</code></td><td><code>Text</code>, <code>Line</code>, <code>Short</code>, <code>Bloom</code>, <code>_BLOOM_ALIASES</code></td><td><code>ExitQuestion._normalise_bloom</code>, <code>_answer_is_an_option</code> 4.9</td></tr>
+    <tr><td><code>validation</code></td><td></td><td><code>_CONTROL_RE</code>, <code>_WS_RE</code>, <code>_UNSAFE</code>, <code>_INJECTION</code></td><td><code>sanitize_text</code> 2.4, <code>check_safety</code> 2.7, <code>check_consistency</code> 2.8, <code>chapter_name</code> 2.9, <code>check_relevance</code> 2.13</td></tr>
+    <tr><td><code>retrieval</code></td><td></td><td><code>CHUNK_ID_RE</code>, <code>_collection</code> (lazy Chroma collection)</td><td><code>retrieve</code> 2.11, <code>_get_collection</code> 2.11, <code>format_chunks</code> 2.14, <code>get_chunk</code> 5.4</td></tr>
+    <tr><td><code>errors</code></td><td><code>AppError</code> and 8 subclasses</td><td></td><td></td></tr>
+    <tr><td><code>logging_setup</code></td><td><code>JsonFormatter</code>, <code>ConsoleFormatter</code>, <code>SessionFileHandler</code>, <code>SessionFormatter</code></td><td><code>_trace_id</code>, <code>_seq</code> (ContextVars), <code>_session_handler</code>, <code>LOGGER_NAME</code></td><td><code>configure_logging</code> 1.12, <code>start_trace</code> 2.2, <code>log_event</code> (everywhere), <code>current_trace_id</code>, <code>session_log_path</code></td></tr>
+    <tr><td><code>index.html</code></td><td></td><td><code>state</code>, <code>SCREEN</code>, <code>TABS</code>, <code>SECTION_STEP</code></td><td><code>generate</code>, <code>buildPayload</code>, <code>validateStep</code>, <code>readError</code>, <code>applyServerFieldErrors</code>, <code>renderResult</code>, <code>renderPlan</code>, <code>renderPhase</code>, <code>sourcesRow</code>, <code>togglePassages</code>, <code>loadMaterials</code>, <code>renderMaterials</code>, <code>buildPrintPack</code>, <code>downloadPack</code>, <code>regenerateWith</code>, <code>el</code></td></tr>
+  </table></div>
+</section>
+
+<p style="color:var(--muted);font-size:0.85rem;margin-top:48px">Written from the source at commit <code>d572775</code>. The event order was checked by running the app with faked LLM and retrieval.</p>
+</main>
+</div>
+</body>
+</html>

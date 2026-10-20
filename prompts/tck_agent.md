@@ -34,6 +34,12 @@ technology cannot represent well.
 {tk_output}
 ```
 
+## Content guidelines
+
+These apply to everything you write. If anything below would break them, follow the guidelines instead.
+
+{guidelines}
+
 ## Rules
 
 1. **Only available technology.** Use a tool only if the TK agent lists it in
